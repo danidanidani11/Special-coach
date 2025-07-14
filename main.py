@@ -169,6 +169,28 @@ def scheduler_loop():
         schedule.run_pending()
         time.sleep(10)
 
+@bot.message_handler(func=lambda m: m.text == "📋 ترکیب و تاکتیک")
+def formation_and_tactic(m):
+    user = get_user(m.chat.id)
+    if not user:
+        return bot.send_message(m.chat.id, "❗ ابتدا /start را بزن.")
+
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    formations = ["4-4-2", "4-3-3", "3-5-2", "5-3-2"]
+    tactics = ["تعادلی", "هجومی", "دفاعی", "ضدحمله"]
+
+    for f in formations:
+        callback_data = f"set_formation:{f}"
+        btn = telebot.types.InlineKeyboardButton(f"⚽ {f}", callback_data=callback_data)
+        markup.add(btn)
+
+    for t in tactics:
+        callback_data = f"set_tactic:{t}"
+        btn = telebot.types.InlineKeyboardButton(f"🎯 {t}", callback_data=callback_data)
+        markup.add(btn)
+
+    bot.send_message(m.chat.id, "📐 ترکیب و تاکتیکت رو انتخاب کن:", reply_markup=markup)
+
 if __name__ == '__main__':
     bot.remove_webhook()
     bot.set_webhook(url=f"https://special-coach.onrender.com/{TOKEN}")  # 🔁 آدرس واقعی Render جایگزین کن
