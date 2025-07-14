@@ -301,6 +301,34 @@ def shop(m):
     users[str(m.chat.id)] = user
     save_json("users.json", users)
 
+@bot.message_handler(func=lambda m: True)
+def handle_buy_gems(m):
+    users = load_json("users.json")
+    user = users.get(str(m.chat.id))
+    if not user or user.get("step") != "buy_gems":
+        return  # این پیام برای سایر حالات است
+
+    try:
+        amount = int(m.text.strip())
+        prices = {1:20, 5:90, 10:170}
+        if amount not in prices:
+            return bot.send_message(m.chat.id, "❌ مقدار معتبر نیست. فقط 1، 5 یا 10 را وارد کن.")
+        price = prices[amount]
+    except:
+        return bot.send_message(m.chat.id, "❌ لطفاً فقط عدد بفرست.")
+
+    if user['coins'] < price:
+        return bot.send_message(m.chat.id, f"❌ سکه کافی نیست! برای {amount} جم به {price} سکه نیاز داری.")
+
+    # کم کردن سکه و اضافه کردن جم
+    user['coins'] -= price
+    user['gems'] += amount
+    user['step'] = None
+    users[str(m.chat.id)] = user
+    save_json("users.json", users)
+
+    bot.send_message(m.chat.id, f"✅ {amount} جم با موفقیت خریدی. سکه‌های باقی‌مانده: {user['coins']}")
+
 if __name__ == '__main__':
     bot.remove_webhook()
     bot.set_webhook(url=f"https://special-coach.onrender.com/{TOKEN}")  # 🔁 آدرس واقعی Render جایگزین کن
