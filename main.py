@@ -1,53 +1,96 @@
 import telebot
 from flask import Flask, request
-import json, threading, time, schedule, random
+import threading, schedule, time, json, random
 
-TOKEN = '7721577419:AAGF6eX2kt5sD4FADDNNIuY0WJE7wBrnhFc'
-ADMIN_ID = 5542927340
-CHANNEL = '@Specialcoach1'
+# === تنظیمات اصلی ===
+TOKEN = "7721577419:AAGF6eX2kt5sD4FADDNNIuY0WJE7wBrnhFc"
+CHANNEL_USERNAME = "@Specialcoach1"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-users_file = 'users.json'
-players_file = 'players.json'
-
+# === توابع JSON ===
 def load_json(path):
-    with open(path, 'r') as f:
-        return json.load(f)
+    try:
+        with open(path, 'r') as f:
+            return json.load(f)
+    except:
+        return {}
 
 def save_json(path, data):
     with open(path, 'w') as f:
         json.dump(data, f, indent=2)
 
 def get_user(uid):
-    users = load_json(users_file)
-    return users.get(str(uid), None)
+    return load_json("users.json").get(str(uid))
 
-def save_user(uid, user_data):
-    users = load_json(users_file)
-    users[str(uid)] = user_data
-    save_json(users_file, users)
+def save_user(uid, data):
+    users = load_json("users.json")
+    users[str(uid)] = data
+    save_json("users.json", users)
 
-# ───── START + ثبت تیم ─────
-@bot.message_handler(commands=['start'])
+# === چک عضویت در کانال ===
+def is_member(user_id):
+    try:
+        status = bot.get_chat_member(CHANNEL_USERNAME, user_id).status
+        return status in ["member", "administrator", "creator"]
+    except:
+        return False
+
+# === /start ===
+@bot.message_handler(commands=["start"])
 def start(m):
-    users = load_json(users_file)
-    if str(m.chat.id) in users:
-        bot.send_message(m.chat.id, "👋 خوش برگشتی مربی!")
-        return show_menu(m.chat.id)
-    
-    users[str(m.chat.id)] = {"step": "ask_team_name"}  # اینجا وضعیت کاربر رو ذخیره می‌کنیم
-    save_json(users_file, users)
-    bot.send_message(m.chat.id, "⚽️ خوش اومدی به لیگ مربیان! اسم تیمت چیه؟")
+    if not is_member(m.chat.id):
+        markup = telebot.types.InlineKeyboardMarkup()
+        btn = telebot.types.InlineKeyboardButton("عضویت در کانال 📢", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")
+        markup.add(btn)
+        return bot.send_message(m.chat.id, "🔐 برای استفاده از ربات، ابتدا عضو کانال زیر شو:", reply_markup=markup)
 
+    users = load_json("users.json")
+    if str(m.chat.id) in users and "team_name" in users[str(m.chat.id)]:
+        return show_menu(m.chat.id)
+
+    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    btn = telebot.types.KeyboardButton("📱 ارسال شماره من", request_contact=True)
+    markup.add(btn)
+    bot.send_message(m.chat.id, "📞 لطفاً شماره‌ت رو بفرست برای احراز هویت:", reply_markup=markup)
+
+# === دریافت شماره تماس ===
+@bot.message_handler(content_types=['contact'])
+def handle_contact(m):
+    if not m.contact or m.contact.user_id != m.from_user.id:
+        return bot.send_message(m.chat.id, "❗ لطفاً شماره واقعی خودت رو بفرست.")
+
+    users = load_json("users.json")
+    users[str(m.chat.id)] = {
+        "phone": m.contact.phone_number,
+        "step": "ask_team_name"
+    }
+    save_json("users.json", users)
+    bot.send_message(m.chat.id, "✅ شماره ثبت شد! حالا اسم تیمت رو بنویس:")
+
+# === پردازش پیام‌های متنی ===
 @bot.message_handler(func=lambda m: True)
 def handle_all_messages(m):
-    users = load_json(users_file)
+    if not is_member(m.chat.id):
+        markup = telebot.types.InlineKeyboardMarkup()
+        btn = telebot.types.InlineKeyboardButton("عضویت در کانال 📢", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")
+        markup.add(btn)
+        return bot.send_message(m.chat.id, "🔐 برای ادامه، اول عضو کانال شو:", reply_markup=markup)
+
+    users = load_json("users.json")
     user = users.get(str(m.chat.id))
-    
-    if user and user.get("step") == "ask_team_name":
+
+    if not user:
+        return bot.send_message(m.chat.id, "❗ لطفاً /start رو بزن.")
+
+    if user.get("step") == "ask_team_name":
         team = m.text.strip()
-        players = random.sample(load_json(players_file), 11)
+        try:
+            all_players = load_json("players.json")
+            players = random.sample(all_players, 11) if len(all_players) >= 11 else []
+        except:
+            players = []
+
         user.update({
             "team_name": team,
             "coins": 100,
@@ -59,84 +102,48 @@ def handle_all_messages(m):
             "step": None
         })
         users[str(m.chat.id)] = user
-        save_json(users_file, users)
+        save_json("users.json", users)
         bot.send_message(m.chat.id, f"✅ تیم {team} ساخته شد!")
         return show_menu(m.chat.id)
 
-    # اگه هنوز تیم نساخته
-    elif not user:
-        bot.send_message(m.chat.id, "❗ لطفاً /start رو بزن اول.")
+    # دکمه‌های منو
+    if m.text == "👤 پروفایل":
+        return show_profile(m)
+    if m.text == "📋 ترکیب و تاکتیک":
+        return bot.send_message(m.chat.id, "📐 این بخش بزودی فعال میشه.")
+    if m.text == "🛒 بازار نقل و انتقالات":
+        return bot.send_message(m.chat.id, "🔄 این بخش در دست ساخت است.")
+    if m.text == "📊 جدول لیگ":
+        return bot.send_message(m.chat.id, "📊 جدول لیگ به زودی اضافه میشه.")
+    if m.text == "🪙 فروشگاه":
+        return bot.send_message(m.chat.id, "🪙 فروشگاه در نسخه بعدی فعاله.")
 
-    else:
-        bot.send_message(m.chat.id, "❗ پیام نامعتبر. لطفاً از منو استفاده کن.")
+    return bot.send_message(m.chat.id, "❗ لطفاً از دکمه‌های منو استفاده کن.")
 
-def set_team_name(m):
-    team = m.text.strip()
-    players = random.sample(load_json(players_file), 11)
-    user_data = {
-        "team_name": team,
-        "coins": 100,
-        "gems": 5,
-        "players": players,
-        "formation": "4-4-2",
-        "tactic": "تعادلی",
-        "points": 0
-    }
-    save_user(m.chat.id, user_data)
-    bot.send_message(m.chat.id, f"✅ تیم {team} ساخته شد!")
-    show_menu(m.chat.id)
+# === پروفایل ===
+def show_profile(m):
+    user = get_user(m.chat.id)
+    if not user:
+        return bot.send_message(m.chat.id, "❗ اول /start رو بزن.")
+    
+    text = f"""📋 پروفایل شما:
+🏷 تیم: {user['team_name']}
+💰 سکه: {user['coins']}
+💎 جم: {user['gems']}
+⚽️ امتیاز: {user['points']}
+📐 ترکیب: {user['formation']}
+🎯 تاکتیک: {user['tactic']}"""
+    
+    bot.send_message(m.chat.id, text)
 
-# ───── منوی اصلی ─────
+# === منو اصلی ===
 def show_menu(cid):
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add("📋 ترکیب و تاکتیک", "🛒 بازار نقل و انتقالات")
     markup.add("📊 جدول لیگ", "🪙 فروشگاه", "👤 پروفایل")
-    bot.send_message(cid, "منوی اصلی:", reply_markup=markup)
+    bot.send_message(cid, "🏟 منوی اصلی:", reply_markup=markup)
 
-# ───── تاکتیک روزانه ─────
-@bot.message_handler(func=lambda m: m.text == "📋 ترکیب و تاکتیک")
-def tactic_handler(m):
-    bot.send_message(m.chat.id, "📐 یکی از تاکتیک‌های زیر رو انتخاب کن:\n1️⃣ ضدحمله\n2️⃣ پرس بالا\n3️⃣ تعادلی")
-    bot.register_next_step_handler(m, set_tactic)
-
-def set_tactic(m):
-    t = m.text.strip()
-    user = get_user(m.chat.id)
-    if user:
-        user["tactic"] = t
-        save_user(m.chat.id, user)
-        bot.send_message(m.chat.id, f"✅ تاکتیک روزانه تنظیم شد: {t}")
-        show_menu(m.chat.id)
-
-# ───── شبیه‌سازی بازی روزانه ─────
-def simulate_daily_match():
-    users = load_json(users_file)
-    for uid, user in users.items():
-        score = random.randint(0, 3)
-        enemy_score = random.randint(0, 3)
-        result = f"📊 نتیجه بازی روزانه:\n{user['team_name']} {score} - {enemy_score} حریف"
-        if score > enemy_score:
-            user["points"] += 3
-            result += "\n🏆 پیروزی! +3 امتیاز"
-        elif score == enemy_score:
-            user["points"] += 1
-            result += "\n🤝 مساوی! +1 امتیاز"
-        else:
-            result += "\n❌ شکست!"
-        save_user(uid, user)
-        try:
-            bot.send_message(int(uid), result)
-        except:
-            continue
-
-# ───── زمان‌بندی اجرای بازی روزانه ─────
-def scheduler_loop():
-    schedule.every().day.at("21:00").do(simulate_daily_match)
-    while True:
-        schedule.run_pending()
-        time.sleep(10)
-
-# ───── Flask برای اجرا روی Render ─────
+# === Flask + Webhook ===
 @app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
     bot.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode("utf-8"))])
@@ -144,14 +151,16 @@ def webhook():
 
 @app.route('/')
 def index():
-    return 'Bot is running.'
+    return 'ربات در حال اجراست.'
 
-def start_flask():
-    app.run(host="0.0.0.0", port=10000)
+def scheduler_loop():
+    schedule.every().day.at("21:00").do(lambda: print("⚽️ شبیه‌سازی بازی‌ها..."))
+    while True:
+        schedule.run_pending()
+        time.sleep(10)
 
-# ───── شروع برنامه ─────
 if __name__ == '__main__':
     bot.remove_webhook()
-    bot.set_webhook(url=f"https://special-coach.onrender.com/{TOKEN}")
+    bot.set_webhook(url=f"https://your-app-name.onrender.com/{TOKEN}")  # 🔁 آدرس واقعی Render جایگزین کن
     threading.Thread(target=scheduler_loop).start()
-    start_flask()
+    app.run(host="0.0.0.0", port=10000)
