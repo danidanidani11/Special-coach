@@ -120,6 +120,6 @@ def start_flask():
 # ───── شروع برنامه ─────
 if __name__ == '__main__':
     bot.remove_webhook()
-    bot.set_webhook(url=f"https://your-render-url.onrender.com/{TOKEN}")
+    bot.set_webhook(url=f"https://special-coach.onrender.com/{TOKEN}")
     threading.Thread(target=scheduler_loop).start()
     start_flask()
