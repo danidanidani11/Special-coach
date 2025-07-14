@@ -1,0 +1,6 @@
+[
+  {"name": "مسی", "position": "RW", "power": 92, "price": 80, "special": true},
+  {"name": "رونالدو", "position": "ST", "power": 91, "price": 75, "special": true},
+  {"name": "هازارد", "position": "LW", "power": 85, "price": 45, "special": false},
+  {"name": "مودریچ", "position": "CM", "power": 88, "price": 60, "special": false}
+]
