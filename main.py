@@ -329,6 +329,21 @@ def handle_buy_gems(m):
 
     bot.send_message(m.chat.id, f"✅ {amount} جم با موفقیت خریدی. سکه‌های باقی‌مانده: {user['coins']}")
 
+@bot.message_handler(func=lambda m: m.text == "📊 جدول لیگ")
+def league_table(m):
+    users = load_json("users.json")
+    if not users:
+        return bot.send_message(m.chat.id, "⚠️ هنوز بازیکنی ثبت نشده.")
+
+    # مرتب‌سازی بر اساس points به صورت نزولی
+    sorted_users = sorted(users.values(), key=lambda x: x.get("points", 0), reverse=True)
+
+    txt = "🏆 جدول لیگ - ۱۰ تیم برتر:\n\n"
+    for i, u in enumerate(sorted_users[:10], start=1):
+        txt += f"{i}. {u.get('team_name', 'ناشناخته')} - امتیاز: {u.get('points',0)}\n"
+
+    bot.send_message(m.chat.id, txt)
+
 if __name__ == '__main__':
     bot.remove_webhook()
     bot.set_webhook(url=f"https://special-coach.onrender.com/{TOKEN}")  # 🔁 آدرس واقعی Render جایگزین کن
