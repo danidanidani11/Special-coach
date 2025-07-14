@@ -211,6 +211,34 @@ def callback_set_formation_tactic(call):
         bot.edit_message_text(f"✅ تاکتیک به {tactic} تغییر کرد.", call.message.chat.id, call.message.message_id)
         bot.answer_callback_query(call.id, "تاکتیک تغییر کرد.")
 
+@bot.message_handler(func=lambda m: m.text == "🛒 بازار نقل و انتقالات")
+def transfer_market(m):
+    user = get_user(m.chat.id)
+    if not user:
+        return bot.send_message(m.chat.id, "❗ ابتدا /start را بزن.")
+
+    all_players = load_json("players.json")
+    owned_names = [p['name'] for p in user.get("players", [])]
+
+    available = [p for p in all_players if p['name'] not in owned_names]
+
+    if not available:
+        return bot.send_message(m.chat.id, "⚠️ هیچ بازیکنی برای خرید در دسترس نیست.")
+
+    text = "🏷 بازیکنان آزاد برای خرید:\n\n"
+    markup = telebot.types.InlineKeyboardMarkup(row_width=1)
+
+    for p in available[:10]:  # فقط ۱۰ تا اول
+        price = p['price']
+        gem_price = int(price * 0.2)  # ۲۰٪ قیمت به جم تبدیل
+        btn = telebot.types.InlineKeyboardButton(
+            f"خرید {p['name']} - قیمت: {price} سکه / {gem_price} جم",
+            callback_data=f"buy_player:{p['name']}"
+        )
+        markup.add(btn)
+
+    bot.send_message(m.chat.id, text, reply_markup=markup)
+
 if __name__ == '__main__':
     bot.remove_webhook()
     bot.set_webhook(url=f"https://special-coach.onrender.com/{TOKEN}")  # 🔁 آدرس واقعی Render جایگزین کن
