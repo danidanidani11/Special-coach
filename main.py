@@ -239,6 +239,43 @@ def transfer_market(m):
 
     bot.send_message(m.chat.id, text, reply_markup=markup)
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith("buy_player:"))
+def buy_player(call):
+    user = get_user(call.message.chat.id)
+    if not user:
+        return bot.answer_callback_query(call.id, "❗ ابتدا /start بزن.")
+
+    player_name = call.data.split(":")[1]
+    all_players = load_json("players.json")
+    player = next((p for p in all_players if p['name'] == player_name), None)
+    if not player:
+        return bot.answer_callback_query(call.id, "⚠️ بازیکن یافت نشد.")
+
+    # بررسی مالکیت قبلی
+    if any(p['name'] == player_name for p in user.get("players", [])):
+        return bot.answer_callback_query(call.id, "❗ شما قبلاً این بازیکن را خریداری کرده‌اید.")
+
+    price = player['price']
+    gem_price = int(price * 0.2)
+
+    # اگر قیمت جم بیشتر از 0 بود (مثلاً بازیکنان خاص)
+    # اجازه بده با جم بخرند در غیر اینصورت فقط با سکه
+    # اینجا مثلا بازیکنای گرون تر از 40 فقط با جم
+    if price > 40:
+        if user['gems'] < gem_price:
+            return bot.answer_callback_query(call.id, f"❌ جم کافی نیست! نیاز به {gem_price} جم داری.")
+        user['gems'] -= gem_price
+    else:
+        if user['coins'] < price:
+            return bot.answer_callback_query(call.id, f"❌ سکه کافی نیست! نیاز به {price} سکه داری.")
+        user['coins'] -= price
+
+    # اضافه کردن بازیکن به تیم
+    user['players'].append(player)
+    save_user(call.message.chat.id, user)
+    bot.answer_callback_query(call.id, f"🎉 بازیکن {player_name} خریداری شد!")
+    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+
 if __name__ == '__main__':
     bot.remove_webhook()
     bot.set_webhook(url=f"https://special-coach.onrender.com/{TOKEN}")  # 🔁 آدرس واقعی Render جایگزین کن
