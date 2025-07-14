@@ -191,6 +191,26 @@ def formation_and_tactic(m):
 
     bot.send_message(m.chat.id, "📐 ترکیب و تاکتیکت رو انتخاب کن:", reply_markup=markup)
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_"))
+def callback_set_formation_tactic(call):
+    user = get_user(call.message.chat.id)
+    if not user:
+        return bot.answer_callback_query(call.id, "❗ ابتدا /start بزن.")
+
+    data = call.data
+    if data.startswith("set_formation:"):
+        formation = data.split(":")[1]
+        user['formation'] = formation
+        save_user(call.message.chat.id, user)
+        bot.edit_message_text(f"✅ ترکیب به {formation} تغییر کرد.", call.message.chat.id, call.message.message_id)
+        bot.answer_callback_query(call.id, "ترکیب تغییر کرد.")
+    elif data.startswith("set_tactic:"):
+        tactic = data.split(":")[1]
+        user['tactic'] = tactic
+        save_user(call.message.chat.id, user)
+        bot.edit_message_text(f"✅ تاکتیک به {tactic} تغییر کرد.", call.message.chat.id, call.message.message_id)
+        bot.answer_callback_query(call.id, "تاکتیک تغییر کرد.")
+
 if __name__ == '__main__':
     bot.remove_webhook()
     bot.set_webhook(url=f"https://special-coach.onrender.com/{TOKEN}")  # 🔁 آدرس واقعی Render جایگزین کن
