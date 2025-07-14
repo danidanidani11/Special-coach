@@ -161,6 +161,6 @@ def scheduler_loop():
 
 if __name__ == '__main__':
     bot.remove_webhook()
-    bot.set_webhook(url=f"https://your-app-name.onrender.com/{TOKEN}")  # 🔁 آدرس واقعی Render جایگزین کن
+    bot.set_webhook(url=f"https://special-coach.onrender.com/{TOKEN}")  # 🔁 آدرس واقعی Render جایگزین کن
     threading.Thread(target=scheduler_loop).start()
     app.run(host="0.0.0.0", port=10000)
