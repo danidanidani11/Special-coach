@@ -81,8 +81,32 @@ def handle_all_messages(m):
     user = users.get(str(m.chat.id))
 
     if not user:
-        return bot.send_message(m.chat.id, "❗ لطفاً /start رو بزن.")
+        return bot.send_message(m.chat.id, "❗ لطفاً /start را بزن.")
 
+    # اگر در حالت خرید جم هستیم
+    if user.get("step") == "buy_gems":
+        try:
+            amount = int(m.text.strip())
+            prices = {1:20, 5:90, 10:170}
+            if amount not in prices:
+                return bot.send_message(m.chat.id, "❌ مقدار معتبر نیست. فقط 1، 5 یا 10 را وارد کن.")
+            price = prices[amount]
+        except:
+            return bot.send_message(m.chat.id, "❌ لطفاً فقط عدد بفرست.")
+
+        if user['coins'] < price:
+            return bot.send_message(m.chat.id, f"❌ سکه کافی نیست! برای {amount} جم به {price} سکه نیاز داری.")
+
+        # کم کردن سکه و اضافه کردن جم
+        user['coins'] -= price
+        user['gems'] += amount
+        user['step'] = None
+        users[str(m.chat.id)] = user
+        save_json("users.json", users)
+
+        return bot.send_message(m.chat.id, f"✅ {amount} جم با موفقیت خریدی. سکه‌های باقی‌مانده: {user['coins']}")
+
+    # اگر هنوز اسم تیم نگرفته، منتظر اسم تیم باش
     if user.get("step") == "ask_team_name":
         team = m.text.strip()
         try:
@@ -106,19 +130,21 @@ def handle_all_messages(m):
         bot.send_message(m.chat.id, f"✅ تیم {team} ساخته شد!")
         return show_menu(m.chat.id)
 
-    # دکمه‌های منو
-    if m.text == "👤 پروفایل":
-        return show_profile(m)
-    if m.text == "📋 ترکیب و تاکتیک":
-        return bot.send_message(m.chat.id, "📐 این بخش بزودی فعال میشه.")
-    if m.text == "🛒 بازار نقل و انتقالات":
-        return bot.send_message(m.chat.id, "🔄 این بخش در دست ساخت است.")
-    if m.text == "📊 جدول لیگ":
-        return bot.send_message(m.chat.id, "📊 جدول لیگ به زودی اضافه میشه.")
-    if m.text == "🪙 فروشگاه":
-        return bot.send_message(m.chat.id, "🪙 فروشگاه در نسخه بعدی فعاله.")
+    # رسیدگی به منوی اصلی
+    text = m.text.strip()
 
-    return bot.send_message(m.chat.id, "❗ لطفاً از دکمه‌های منو استفاده کن.")
+    if text == "👤 پروفایل":
+        return show_profile(m)
+    elif text == "📋 ترکیب و تاکتیک":
+        return formation_and_tactic(m)
+    elif text == "🛒 بازار نقل و انتقالات":
+        return transfer_market(m)
+    elif text == "🪙 فروشگاه":
+        return shop(m)
+    elif text == "📊 جدول لیگ":
+        return league_table(m)
+    else:
+        return bot.send_message(m.chat.id, "❗ لطفاً از دکمه‌های منو استفاده کن.")
 
 # === پروفایل ===
 def show_profile(m):
