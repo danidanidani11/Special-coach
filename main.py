@@ -35,8 +35,10 @@ def start(m):
     if str(m.chat.id) in users:
         bot.send_message(m.chat.id, "👋 خوش برگشتی مربی!")
         return show_menu(m.chat.id)
+    
+    users[str(m.chat.id)] = {"step": "ask_team_name"}  # اینجا وضعیت کاربر رو ذخیره می‌کنیم
+    save_json(users_file, users)
     bot.send_message(m.chat.id, "⚽️ خوش اومدی به لیگ مربیان! اسم تیمت چیه؟")
-    bot.register_next_step_handler(m, set_team_name)
 
 def set_team_name(m):
     team = m.text.strip()
