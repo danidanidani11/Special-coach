@@ -40,6 +40,36 @@ def start(m):
     save_json(users_file, users)
     bot.send_message(m.chat.id, "⚽️ خوش اومدی به لیگ مربیان! اسم تیمت چیه؟")
 
+@bot.message_handler(func=lambda m: True)
+def handle_all_messages(m):
+    users = load_json(users_file)
+    user = users.get(str(m.chat.id))
+    
+    if user and user.get("step") == "ask_team_name":
+        team = m.text.strip()
+        players = random.sample(load_json(players_file), 11)
+        user.update({
+            "team_name": team,
+            "coins": 100,
+            "gems": 5,
+            "players": players,
+            "formation": "4-4-2",
+            "tactic": "تعادلی",
+            "points": 0,
+            "step": None
+        })
+        users[str(m.chat.id)] = user
+        save_json(users_file, users)
+        bot.send_message(m.chat.id, f"✅ تیم {team} ساخته شد!")
+        return show_menu(m.chat.id)
+
+    # اگه هنوز تیم نساخته
+    elif not user:
+        bot.send_message(m.chat.id, "❗ لطفاً /start رو بزن اول.")
+
+    else:
+        bot.send_message(m.chat.id, "❗ پیام نامعتبر. لطفاً از منو استفاده کن.")
+
 def set_team_name(m):
     team = m.text.strip()
     players = random.sample(load_json(players_file), 11)
