@@ -276,6 +276,31 @@ def buy_player(call):
     bot.answer_callback_query(call.id, f"🎉 بازیکن {player_name} خریداری شد!")
     bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
 
+@bot.message_handler(func=lambda m: m.text == "🪙 فروشگاه")
+def shop(m):
+    user = get_user(m.chat.id)
+    if not user:
+        return bot.send_message(m.chat.id, "❗ ابتدا /start را بزن.")
+
+    text = f"""🪙 فروشگاه جم
+
+سکه فعلی شما: {user['coins']}
+جم فعلی شما: {user['gems']}
+
+قیمت‌ها:
+۱ جم = ۲۰ سکه
+۵ جم = ۹۰ سکه (تخفیف)
+۱۰ جم = ۱۷۰ سکه (تخفیف بیشتر)
+
+برای خرید مقدار مورد نظر عدد جم را وارد کنید:
+مثلاً برای خرید ۵ جم، عدد ۵ را ارسال کنید.
+"""
+    bot.send_message(m.chat.id, text)
+    user['step'] = "buy_gems"
+    users = load_json("users.json")
+    users[str(m.chat.id)] = user
+    save_json("users.json", users)
+
 if __name__ == '__main__':
     bot.remove_webhook()
     bot.set_webhook(url=f"https://special-coach.onrender.com/{TOKEN}")  # 🔁 آدرس واقعی Render جایگزین کن
