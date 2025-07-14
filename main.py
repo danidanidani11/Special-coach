@@ -124,17 +124,27 @@ def handle_all_messages(m):
 def show_profile(m):
     user = get_user(m.chat.id)
     if not user:
-        return bot.send_message(m.chat.id, "❗ اول /start رو بزن.")
-    
-    text = f"""📋 پروفایل شما:
+        return bot.send_message(m.chat.id, "❗ ابتدا /start را بزن.")
+
+    txt = f"""📋 پروفایل شما:
+
 🏷 تیم: {user['team_name']}
 💰 سکه: {user['coins']}
 💎 جم: {user['gems']}
 ⚽️ امتیاز: {user['points']}
 📐 ترکیب: {user['formation']}
-🎯 تاکتیک: {user['tactic']}"""
-    
-    bot.send_message(m.chat.id, text)
+🎯 تاکتیک: {user['tactic']}
+
+👥 بازیکنان اصلی:
+"""
+    players = user.get("players", [])
+    if players:
+        for p in players:
+            txt += f"• {p['name']} ({p['position']}) - 💵 {p['price']}M\n"
+    else:
+        txt += "هیچ بازیکنی نداری!"
+
+    bot.send_message(m.chat.id, txt)
 
 # === منو اصلی ===
 def show_menu(cid):
