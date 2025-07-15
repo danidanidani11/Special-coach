@@ -444,7 +444,7 @@ def give_daily_reward(msg):
     users[uid]["wallet"] = wallet
     daily_reward_claimed.add(key)
     save_users()
-    bot.send_message(msg.chat.id, "🎉 پاداش روزانه: ۲ جم به کیف پول شما اضافه شد!", reply_markup=main_menu())
+    bot.send_message(msg.chat.id, "🎉 ۲ جم به کیف پول شما اضافه شد!", reply_markup=main_menu())
 
 # Flask webhook endpoint برای رندر
 @app.route(f"/{TOKEN}", methods=["POST"])
