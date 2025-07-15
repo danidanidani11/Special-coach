@@ -2,376 +2,188 @@ import telebot
 from flask import Flask, request
 import threading, schedule, time, json, random
 
-# === تنظیمات اصلی ===
 TOKEN = "7721577419:AAGF6eX2kt5sD4FADDNNIuY0WJE7wBrnhFc"
-CHANNEL_USERNAME = "@Specialcoach1"
+CHANNEL = "@Specialcoach1"
+ADMIN_ID = 5542927340
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# === توابع JSON ===
 def load_json(path):
     try:
-        with open(path, 'r') as f:
-            return json.load(f)
-    except:
-        return {}
+        with open(path,'r') as f: return json.load(f)
+    except: return {}
 
-def save_json(path, data):
-    with open(path, 'w') as f:
-        json.dump(data, f, indent=2)
+def save_json(path,data):
+    with open(path,'w') as f: json.dump(data,f,indent=2)
 
 def get_user(uid):
     return load_json("users.json").get(str(uid))
 
-def save_user(uid, data):
-    users = load_json("users.json")
-    users[str(uid)] = data
-    save_json("users.json", users)
+def save_user(uid,data):
+    users=load_json("users.json")
+    users[str(uid)]=data
+    save_json("users.json",users)
 
-# === چک عضویت در کانال ===
-def is_member(user_id):
+def is_member(uid):
     try:
-        status = bot.get_chat_member(CHANNEL_USERNAME, user_id).status
-        return status in ["member", "administrator", "creator"]
-    except:
-        return False
+        s=bot.get_chat_member(CHANNEL,uid).status
+        return s in ["member","administrator","creator"]
+    except: return False
 
-# === /start ===
+def give_initial_players():
+    allp=load_json("players.json")
+    localsp=[p for p in allp if p["name"].startswith("Local")]
+    return random.sample(localsp,5)
+
 @bot.message_handler(commands=["start"])
 def start(m):
     if not is_member(m.chat.id):
-        markup = telebot.types.InlineKeyboardMarkup()
-        btn = telebot.types.InlineKeyboardButton("عضویت در کانال 📢", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")
-        markup.add(btn)
-        return bot.send_message(m.chat.id, "🔐 برای استفاده از ربات، ابتدا عضو کانال زیر شو:", reply_markup=markup)
+        inline=telebot.types.InlineKeyboardMarkup()
+        btn=telebot.types.InlineKeyboardButton("عضویت در کانال",url=f"https://t.me/{CHANNEL[1:]}")
+        inline.add(btn)
+        return bot.send_message(m.chat.id,"🔐 ابتدا عضو کانال شو",reply_markup=inline)
+    users=load_json("users.json")
+    if str(m.chat.id) not in users:
+        users[str(m.chat.id)]={"step":None,"coins":0,"gems":0}
+        save_json("users.json",users)
+    users=str(m.chat.id)
 
-    users = load_json("users.json")
-    if str(m.chat.id) in users and "team_name" in users[str(m.chat.id)]:
-        return show_menu(m.chat.id)
+    bot.send_message(m.chat.id,"✅ سلام مربی! خوش برگشتی.",reply_markup=None)
+    show_menu(m.chat.id)
 
-    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    btn = telebot.types.KeyboardButton("📱 ارسال شماره من", request_contact=True)
-    markup.add(btn)
-    bot.send_message(m.chat.id, "📞 لطفاً شماره‌ت رو بفرست برای احراز هویت:", reply_markup=markup)
-
-# === دریافت شماره تماس ===
 @bot.message_handler(content_types=['contact'])
 def handle_contact(m):
-    if not m.contact or m.contact.user_id != m.from_user.id:
-        return bot.send_message(m.chat.id, "❗ لطفاً شماره واقعی خودت رو بفرست.")
+    # no change
 
-    users = load_json("users.json")
-    users[str(m.chat.id)] = {
-        "phone": m.contact.phone_number,
-        "step": "ask_team_name"
-    }
-    save_json("users.json", users)
-    bot.send_message(m.chat.id, "✅ شماره ثبت شد! حالا اسم تیمت رو بنویس:")
+@bot.callback_query_handler(lambda c:c.data.startswith("confirm_receipt:"))
+def confirm_receipt(c):
+    parts=c.data.split(":")
+    uid,p=int(parts[1]),int(parts[2])
+    if c.from_user.id!=ADMIN_ID:
+        return bot.answer_callback_query(c.id,"❗ فقط ادمین میتونه.")
+    u=get_user(p)
+    amt=int(parts[3])
+    u['coins']+=amt
+    save_user(p,u)
+    bot.answer_callback_query(c.id,"✅ سکه اضافه شد")
+    bot.send_message(p,f"✅ {amt} سکه به حسابت اضافه شد.")
 
-# === پردازش پیام‌های متنی ===
-@bot.message_handler(func=lambda m: True)
-def handle_all_messages(m):
-    if not is_member(m.chat.id):
-        markup = telebot.types.InlineKeyboardMarkup()
-        btn = telebot.types.InlineKeyboardButton("عضویت در کانال 📢", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")
-        markup.add(btn)
-        return bot.send_message(m.chat.id, "🔐 برای ادامه، اول عضو کانال شو:", reply_markup=markup)
+@bot.callback_query_handler(lambda c:c.data=="back_to_menu")
+def back(c):
+    bot.send_message(c.message.chat.id,"⏮ بازگشت به منو")
+    show_menu(c.message.chat.id)
 
-    users = load_json("users.json")
-    user = users.get(str(m.chat.id))
+# handle msgs:
+@bot.message_handler(func=lambda m:True)
+def h(m):
+    if not is_member(m.chat.id): return start(m)
+    u=get_user(m.chat.id)
+    if not u: return start(m)
+    txt=m.text
 
-    if not user:
-        return bot.send_message(m.chat.id, "❗ لطفاً /start را بزن.")
-
-    # اگر در حالت خرید جم هستیم
-    if user.get("step") == "buy_gems":
+    if txt=="🪙 فروشگاه":
+        kb=telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+        kb.add("🎟 خرید سکه","💎 خرید جم","🔙 بازگشت")
+        u['step']="shop"
+        save_user(m.chat.id,u)
+        return bot.send_message(m.chat.id,"🪙 فروشگاه: انتخاب کن",reply_markup=kb)
+    if u.get('step')=="shop":
+        if txt=="🎟 خرید سکه":
+            bot.send_message(m.chat.id,"📥 برای خرید سکه، مبلغ رو (عدد) بفرست:")
+            u['step']="buy_coins"
+            save_user(m.chat.id,u);return
+        if txt=="💎 خرید جم":
+            bot.send_message(m.chat.id,"📥 برای خرید جم، عدد مورد نظر رو بفرست:")
+            u['step']="buy_gems"
+            save_user(m.chat.id,u);return
+        if txt=="🔙 بازگشت":
+            u['step']=None;save_user(m.chat.id,u)
+            return show_menu(m.chat.id)
+    if u.get('step')=="buy_coins":
         try:
-            amount = int(m.text.strip())
-            prices = {1:20, 5:90, 10:170}
-            if amount not in prices:
-                return bot.send_message(m.chat.id, "❌ مقدار معتبر نیست. فقط 1، 5 یا 10 را وارد کن.")
-            price = prices[amount]
-        except:
-            return bot.send_message(m.chat.id, "❌ لطفاً فقط عدد بفرست.")
-
-        if user['coins'] < price:
-            return bot.send_message(m.chat.id, f"❌ سکه کافی نیست! برای {amount} جم به {price} سکه نیاز داری.")
-
-        # کم کردن سکه و اضافه کردن جم
-        user['coins'] -= price
-        user['gems'] += amount
-        user['step'] = None
-        users[str(m.chat.id)] = user
-        save_json("users.json", users)
-
-        return bot.send_message(m.chat.id, f"✅ {amount} جم با موفقیت خریدی. سکه‌های باقی‌مانده: {user['coins']}")
-
-    # اگر هنوز اسم تیم نگرفته، منتظر اسم تیم باش
-    if user.get("step") == "ask_team_name":
-        team = m.text.strip()
+            amt=int(txt)
+        except: return bot.send_message(m.chat.id,"❌ عدد معتبر بفرست")
+        bot.send_message(m.chat.id,f"✅ رسید {amt} سکه ارسال شد، منتظر تایید ادمین",reply_markup=None)
+        bot.send_message(ADMIN_ID,f"📥 رسید خرید {amt} سکه از @{m.from_user.username or m.chat.id}",reply_markup=telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("✅ تأیید",callback_data=f"confirm_receipt:{m.chat.id}:{0}:{amt}"),telebot.types.InlineKeyboardButton("❌ رد",callback_data="back_to_menu")))
+        u['step']=None;save_user(m.chat.id,u);return
+    if u.get('step')=="buy_gems":
         try:
-            all_players = load_json("players.json")
-            players = random.sample(all_players, 11) if len(all_players) >= 11 else []
-        except:
-            players = []
-
-        user.update({
-            "team_name": team,
-            "coins": 100,
-            "gems": 5,
-            "players": players,
-            "formation": "4-4-2",
-            "tactic": "تعادلی",
-            "points": 0,
-            "step": None
-        })
-        users[str(m.chat.id)] = user
-        save_json("users.json", users)
-        bot.send_message(m.chat.id, f"✅ تیم {team} ساخته شد!")
-        return show_menu(m.chat.id)
-
-    # رسیدگی به منوی اصلی
-    text = m.text.strip()
-
-    if text == "👤 پروفایل":
+            amt=int(txt); prices={1:20,5:90,10:170}
+            if amt not in prices: return bot.send_message(m.chat.id,"عدد معتبر نیست")
+        except: return bot.send_message(m.chat.id,"عدد معتبر بفرست")
+        if u['coins']<prices[amt]: return bot.send_message(m.chat.id,"سکه کافی نیست")
+        u['coins']-=prices[amt];u['gems']+=amt
+        u['step']=None;save_user(m.chat.id,u)
+        return bot.send_message(m.chat.id,f"✅ {amt} جم خریدی، سکه باقیمانده: {u['coins']}")
+    if txt=="📋 ترکیب و تاکتیک":
+        kb=telebot.types.InlineKeyboardMarkup(row_width=2)
+        sections=[
+            ("chg_form","تغییر ترکیب"),("chg_tact","تغییر تاکتیک"),
+            ("sv_form","ذخیره چینش"),("ld_form","بارگذاری چینش"),
+            ("analyze","آنالیز")
+        ]
+        for code,lab in sections:
+            kb.add(telebot.types.InlineKeyboardButton(lab,callback_data=code))
+        return bot.send_message(m.chat.id,"📐 بخش ترکیب و تاکتیک:",reply_markup=kb)
+    if txt=="👤 پروفایل":
         return show_profile(m)
-    elif text == "📋 ترکیب و تاکتیک":
-        return formation_and_tactic(m)
-    elif text == "🛒 بازار نقل و انتقالات":
-        return transfer_market(m)
-    elif text == "🪙 فروشگاه":
-        return shop(m)
-    elif text == "📊 جدول لیگ":
-        return league_table(m)
-    else:
-        return bot.send_message(m.chat.id, "❗ لطفاً از دکمه‌های منو استفاده کن.")
+    if txt=="/start":
+        return start(m)
 
-# === پروفایل ===
+    return bot.send_message(m.chat.id,"❗ از منو استفاده کن.")
+
+# بخش‌های callback برای ck فرم، آنالیز و ذخیره و بارگذاری رو ساده نگهدار:
+@bot.callback_query_handler(lambda c:c.data in ["chg_form","chg_tact","sv_form","ld_form","analyze"])
+def cb2(c):
+    u=get_user(c.message.chat.id)
+    if not u: return
+    txt=""
+    if c.data=="chg_form":
+        u['formation']="4-3-3" if u.get('formation')!="4-3-3" else "3-5-2"
+        txt=f"✅ ترکیب: {u['formation']}"
+    elif c.data=="chg_tact":
+        u['tactic']="هجومی" if u.get('tactic')!="هجومی" else "دفاعی"
+        txt=f"✅ تاکتیک: {u['tactic']}"
+    elif c.data=="sv_form":
+        u['saved_form']=u.get('formation')
+        txt="📥 چینش ذخیره شد"
+    elif c.data=="ld_form":
+        if 'saved_form' in u: 
+            u['formation']=u['saved_form']
+            txt="📤 چینش بارگذاری شد"
+        else: txt="❗ چیزی ذخیره نشده!"
+    else:
+        txt=f"📊 آنالیز: امتیاز {u.get('points',0)}, سکه {u['coins']}, جم {u['gems']}"
+    save_user(c.message.chat.id,u)
+    bot.edit_message_text(txt, c.message.chat.id, c.message.message_id)
+    bot.answer_callback_query(c.id)
+
 def show_profile(m):
-    user = get_user(m.chat.id)
-    if not user:
-        return bot.send_message(m.chat.id, "❗ ابتدا /start را بزن.")
+    u=get_user(m.chat.id)
+    pl=u.get('players',[])
+    txt=f"""📋 پروفایل:
 
-    txt = f"""📋 پروفایل شما:
+🏷 {u['team_name']} | ⚽️ ترکیب: {u.get('formation')} | 🎯 تاکتیک: {u.get('tactic')}
 
-🏷 تیم: {user['team_name']}
-💰 سکه: {user['coins']}
-💎 جم: {user['gems']}
-⚽️ امتیاز: {user['points']}
-📐 ترکیب: {user['formation']}
-🎯 تاکتیک: {user['tactic']}
+💰 سکه: {u['coins']} | 💎 جم: {u['gems']} | ⚡️ امتیاز: {u.get('points')}
 
-👥 بازیکنان اصلی:
+👥 بازیکنان:
 """
-    players = user.get("players", [])
-    if players:
-        for p in players:
-            txt += f"• {p['name']} ({p['position']}) - 💵 {p['price']}M\n"
-    else:
-        txt += "هیچ بازیکنی نداری!"
+    for p in pl: txt+=f"• {p['name']} ({p['position']})\n"
+    bot.send_message(m.chat.id,txt)
 
-    bot.send_message(m.chat.id, txt)
+def transfer_market(m): pass
+def league_table(m): pass
 
-# === منو اصلی ===
-def show_menu(cid):
-    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("📋 ترکیب و تاکتیک", "🛒 بازار نقل و انتقالات")
-    markup.add("📊 جدول لیگ", "🪙 فروشگاه", "👤 پروفایل")
-    bot.send_message(cid, "🏟 منوی اصلی:", reply_markup=markup)
-
-# === Flask + Webhook ===
-@app.route(f'/{TOKEN}', methods=['POST'])
-def webhook():
-    bot.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode("utf-8"))])
-    return 'ok'
-
+@app.route(f'/{TOKEN}',methods=['POST'])
+def w():bot.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode())]);return'ok'
 @app.route('/')
-def index():
-    return 'ربات در حال اجراست.'
+def i():return'up'
 
-def scheduler_loop():
-    schedule.every().day.at("21:00").do(lambda: print("⚽️ شبیه‌سازی بازی‌ها..."))
-    while True:
-        schedule.run_pending()
-        time.sleep(10)
+def sim(): pass
 
-@bot.message_handler(func=lambda m: m.text == "📋 ترکیب و تاکتیک")
-def formation_and_tactic(m):
-    user = get_user(m.chat.id)
-    if not user:
-        return bot.send_message(m.chat.id, "❗ ابتدا /start را بزن.")
-
-    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
-    formations = ["4-4-2", "4-3-3", "3-5-2", "5-3-2"]
-    tactics = ["تعادلی", "هجومی", "دفاعی", "ضدحمله"]
-
-    for f in formations:
-        callback_data = f"set_formation:{f}"
-        btn = telebot.types.InlineKeyboardButton(f"⚽ {f}", callback_data=callback_data)
-        markup.add(btn)
-
-    for t in tactics:
-        callback_data = f"set_tactic:{t}"
-        btn = telebot.types.InlineKeyboardButton(f"🎯 {t}", callback_data=callback_data)
-        markup.add(btn)
-
-    bot.send_message(m.chat.id, "📐 ترکیب و تاکتیکت رو انتخاب کن:", reply_markup=markup)
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("set_"))
-def callback_set_formation_tactic(call):
-    user = get_user(call.message.chat.id)
-    if not user:
-        return bot.answer_callback_query(call.id, "❗ ابتدا /start بزن.")
-
-    data = call.data
-    if data.startswith("set_formation:"):
-        formation = data.split(":")[1]
-        user['formation'] = formation
-        save_user(call.message.chat.id, user)
-        bot.edit_message_text(f"✅ ترکیب به {formation} تغییر کرد.", call.message.chat.id, call.message.message_id)
-        bot.answer_callback_query(call.id, "ترکیب تغییر کرد.")
-    elif data.startswith("set_tactic:"):
-        tactic = data.split(":")[1]
-        user['tactic'] = tactic
-        save_user(call.message.chat.id, user)
-        bot.edit_message_text(f"✅ تاکتیک به {tactic} تغییر کرد.", call.message.chat.id, call.message.message_id)
-        bot.answer_callback_query(call.id, "تاکتیک تغییر کرد.")
-
-@bot.message_handler(func=lambda m: m.text == "🛒 بازار نقل و انتقالات")
-def transfer_market(m):
-    user = get_user(m.chat.id)
-    if not user:
-        return bot.send_message(m.chat.id, "❗ ابتدا /start را بزن.")
-
-    all_players = load_json("players.json")
-    owned_names = [p['name'] for p in user.get("players", [])]
-
-    available = [p for p in all_players if p['name'] not in owned_names]
-
-    if not available:
-        return bot.send_message(m.chat.id, "⚠️ هیچ بازیکنی برای خرید در دسترس نیست.")
-
-    text = "🏷 بازیکنان آزاد برای خرید:\n\n"
-    markup = telebot.types.InlineKeyboardMarkup(row_width=1)
-
-    for p in available[:10]:  # فقط ۱۰ تا اول
-        price = p['price']
-        gem_price = int(price * 0.2)  # ۲۰٪ قیمت به جم تبدیل
-        btn = telebot.types.InlineKeyboardButton(
-            f"خرید {p['name']} - قیمت: {price} سکه / {gem_price} جم",
-            callback_data=f"buy_player:{p['name']}"
-        )
-        markup.add(btn)
-
-    bot.send_message(m.chat.id, text, reply_markup=markup)
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("buy_player:"))
-def buy_player(call):
-    user = get_user(call.message.chat.id)
-    if not user:
-        return bot.answer_callback_query(call.id, "❗ ابتدا /start بزن.")
-
-    player_name = call.data.split(":")[1]
-    all_players = load_json("players.json")
-    player = next((p for p in all_players if p['name'] == player_name), None)
-    if not player:
-        return bot.answer_callback_query(call.id, "⚠️ بازیکن یافت نشد.")
-
-    # بررسی مالکیت قبلی
-    if any(p['name'] == player_name for p in user.get("players", [])):
-        return bot.answer_callback_query(call.id, "❗ شما قبلاً این بازیکن را خریداری کرده‌اید.")
-
-    price = player['price']
-    gem_price = int(price * 0.2)
-
-    # اگر قیمت جم بیشتر از 0 بود (مثلاً بازیکنان خاص)
-    # اجازه بده با جم بخرند در غیر اینصورت فقط با سکه
-    # اینجا مثلا بازیکنای گرون تر از 40 فقط با جم
-    if price > 40:
-        if user['gems'] < gem_price:
-            return bot.answer_callback_query(call.id, f"❌ جم کافی نیست! نیاز به {gem_price} جم داری.")
-        user['gems'] -= gem_price
-    else:
-        if user['coins'] < price:
-            return bot.answer_callback_query(call.id, f"❌ سکه کافی نیست! نیاز به {price} سکه داری.")
-        user['coins'] -= price
-
-    # اضافه کردن بازیکن به تیم
-    user['players'].append(player)
-    save_user(call.message.chat.id, user)
-    bot.answer_callback_query(call.id, f"🎉 بازیکن {player_name} خریداری شد!")
-    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
-
-@bot.message_handler(func=lambda m: m.text == "🪙 فروشگاه")
-def shop(m):
-    user = get_user(m.chat.id)
-    if not user:
-        return bot.send_message(m.chat.id, "❗ ابتدا /start را بزن.")
-
-    text = f"""🪙 فروشگاه جم
-
-سکه فعلی شما: {user['coins']}
-جم فعلی شما: {user['gems']}
-
-قیمت‌ها:
-۱ جم = ۲۰ سکه
-۵ جم = ۹۰ سکه (تخفیف)
-۱۰ جم = ۱۷۰ سکه (تخفیف بیشتر)
-
-برای خرید مقدار مورد نظر عدد جم را وارد کنید:
-مثلاً برای خرید ۵ جم، عدد ۵ را ارسال کنید.
-"""
-    bot.send_message(m.chat.id, text)
-    user['step'] = "buy_gems"
-    users = load_json("users.json")
-    users[str(m.chat.id)] = user
-    save_json("users.json", users)
-
-@bot.message_handler(func=lambda m: True)
-def handle_buy_gems(m):
-    users = load_json("users.json")
-    user = users.get(str(m.chat.id))
-    if not user or user.get("step") != "buy_gems":
-        return  # این پیام برای سایر حالات است
-
-    try:
-        amount = int(m.text.strip())
-        prices = {1:20, 5:90, 10:170}
-        if amount not in prices:
-            return bot.send_message(m.chat.id, "❌ مقدار معتبر نیست. فقط 1، 5 یا 10 را وارد کن.")
-        price = prices[amount]
-    except:
-        return bot.send_message(m.chat.id, "❌ لطفاً فقط عدد بفرست.")
-
-    if user['coins'] < price:
-        return bot.send_message(m.chat.id, f"❌ سکه کافی نیست! برای {amount} جم به {price} سکه نیاز داری.")
-
-    # کم کردن سکه و اضافه کردن جم
-    user['coins'] -= price
-    user['gems'] += amount
-    user['step'] = None
-    users[str(m.chat.id)] = user
-    save_json("users.json", users)
-
-    bot.send_message(m.chat.id, f"✅ {amount} جم با موفقیت خریدی. سکه‌های باقی‌مانده: {user['coins']}")
-
-@bot.message_handler(func=lambda m: m.text == "📊 جدول لیگ")
-def league_table(m):
-    users = load_json("users.json")
-    if not users:
-        return bot.send_message(m.chat.id, "⚠️ هنوز بازیکنی ثبت نشده.")
-
-    # مرتب‌سازی بر اساس points به صورت نزولی
-    sorted_users = sorted(users.values(), key=lambda x: x.get("points", 0), reverse=True)
-
-    txt = "🏆 جدول لیگ - ۱۰ تیم برتر:\n\n"
-    for i, u in enumerate(sorted_users[:10], start=1):
-        txt += f"{i}. {u.get('team_name', 'ناشناخته')} - امتیاز: {u.get('points',0)}\n"
-
-    bot.send_message(m.chat.id, txt)
-
-if __name__ == '__main__':
+if __name__=='__main__':
     bot.remove_webhook()
-    bot.set_webhook(url=f"https://special-coach.onrender.com/{TOKEN}")  # 🔁 آدرس واقعی Render جایگزین کن
-    threading.Thread(target=scheduler_loop).start()
-    app.run(host="0.0.0.0", port=10000)
+    bot.set_webhook(url=f"https://your-app.onrender.com/{TOKEN}")
+    threading.Thread(target=lambda:(schedule.every().day.at("21:00").do(sim),[schedule.run_pending() or time.sleep(10)]),daemon=True).start()
+    app.run(host="0.0.0.0",port=10000)
