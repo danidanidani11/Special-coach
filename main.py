@@ -548,6 +548,15 @@ def back_to_menu(msg):
     bot.send_message(msg.chat.id, "بازگشت به منو اصلی.", reply_markup=main_menu())
 
 # ---------------- اجرای ربات ---------------- #
-print("Bot is running...")
-bot.remove_webhook()
-bot.infinity_polling()
+if __name__ == '__main__':
+    import threading
+
+    # Thread برای اجرای bot.polling
+    def run_bot():
+        bot.remove_webhook()  # برای جلوگیری از 409
+        bot.infinity_polling()
+
+    threading.Thread(target=run_bot).start()
+
+    # اجرای وب سرور فِلَسک برای راضی نگه داشتن Render
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
