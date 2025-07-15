@@ -59,7 +59,7 @@ def handle_contact(m):
 def confirm_receipt(c):
     parts = c.data.split(":")
     user_id = int(parts[1])
-    admin_id = int(parts[2])  # این مقدار فقط برای بررسی سازگاری گذاشته شده، می‌تونی حذفش کنی
+    admin_id = int(parts[2])
     amount = int(parts[3])
 
     if c.from_user.id != ADMIN_ID:
@@ -75,7 +75,6 @@ def confirm_receipt(c):
     bot.answer_callback_query(c.id, "✅ سکه به کاربر اضافه شد.")
     bot.send_message(user_id, f"✅ {amount} سکه با موفقیت به حسابت اضافه شد.")
     bot.edit_message_text("✅ رسید تایید شد و سکه اضافه شد.", c.message.chat.id, c.message.message_id)
-
 @bot.callback_query_handler(lambda c:c.data=="back_to_menu")
 def back(c):
     bot.send_message(c.message.chat.id,"⏮ بازگشت به منو")
