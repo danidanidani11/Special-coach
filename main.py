@@ -283,28 +283,31 @@ def handle_payment_receipt(msg):
     )
     bot.send_message(admin_id, "لطفا وضعیت فیش را تایید یا رد کنید:", reply_markup=markup)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("approve_") or call.data.startswith("reject_"))
-def handle_payment_approval(call):
-    if str(call.from_user.id) != str(ADMIN_ID):
-        bot.answer_callback_query(call.id, "⛔ شما دسترسی ندارید.")
+@bot.callback_query_handler(func=lambda call: call.data.startswith(("approve_", "reject_")))
+def handle_admin_receipt_decision(call):
+    admin_id = 5542927340
+    if call.from_user.id != admin_id:
+        bot.answer_callback_query(call.id, "❌ شما اجازه انجام این کار را ندارید.")
         return
 
-    data = call.data
-    uid = data.split("_")[1]
+    uid = call.data.split("_")[1]
+    user = users.get(uid)
+    if not user:
+        bot.answer_callback_query(call.id, "❌ کاربر پیدا نشد.")
+        return
 
-    if data.startswith("approve_"):
-        if uid in users:
-            wallet = users[uid].get("wallet", {"coins":0, "gems":0})
-            wallet["coins"] = wallet.get("coins",0) + 100  # ۱۰۰ سکه اضافه می‌کنیم
-            users[uid]["wallet"] = wallet
-            save_users()
-            bot.edit_message_text(f"✅ پرداخت تایید شد و ۱۰۰ سکه به کیف پول اضافه شد.", call.message.chat.id, call.message.message_id)
-            bot.send_message(uid, "💰 پرداخت شما تایید شد و ۱۰۰ سکه به کیف پول اضافه شد.")
-    elif data.startswith("reject_"):
-        bot.edit_message_text(f"❌ پرداخت رد شد.", call.message.chat.id, call.message.message_id)
-        bot.send_message(uid, "❌ پرداخت شما رد شد.")
+    wallet = user.get("wallet", {"coins":0, "gems":0})
 
-night_game_participants = set()
+    if call.data.startswith("approve_"):
+        wallet["coins"] = wallet.get("coins",0) + 100  # اضافه شدن 100 سکه
+        user["wallet"] = wallet
+        users[uid] = user
+        save_users()
+        bot.edit_message_text("✅ فیش تایید شد و ۱۰۰ سکه به کیف پول اضافه شد.", call.message.chat.id, call.message.message_id)
+        bot.answer_callback_query(call.id, "فیش تایید شد.")
+    else:
+        bot.edit_message_text("❌ فیش رد شد.", call.message.chat.id, call.message.message_id)
+        bot.answer_callback_query(call.id, "فیش رد شد.")
 
 def join_night_game(msg):
     uid = str(msg.from_user.id)
