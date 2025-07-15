@@ -391,7 +391,7 @@ def run_night_games():
 # تابع زمان‌بندی اجرای بازی شبانه ساعت 21:00
 def schedule_night_game():
     now = datetime.datetime.now()
-    target = now.replace(hour=21, minute=0, second=0, microsecond=0)
+    target = now.replace(hour=22, minute=0, second=0, microsecond=0)  # ساعت 10 شب
     if now > target:
         target += datetime.timedelta(days=1)
     delay = (target - now).total_seconds()
