@@ -3,299 +3,542 @@ from telebot import types
 import json
 import os
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 TOKEN = "7721577419:AAGF6eX2kt5sD4FADDNNIuY0WJE7wBrnhFc"
 ADMIN_ID = 5542927340
-CHANNEL_USERNAME = "@Specialcoach1"
+CHANNEL_USERNAME = "Specialcoach1"
 TRON_ADDRESS = "TJ4xrwKJzKjk6FgKfuuqwah3Az5Ur22kJb"
 
 bot = telebot.TeleBot(TOKEN)
+DATA_DIR = "data"
+os.makedirs(DATA_DIR, exist_ok=True)
 
-users_file = 'data/users.json'
-players_file = 'data/players.json'
+USERS_FILE = os.path.join(DATA_DIR, "users.json")
+PLAYERS_FILE = os.path.join(DATA_DIR, "players.json")
+ENTRANTS_FILE = os.path.join(DATA_DIR, "entrants.json")
 
-# ---------------- ذخیره و بارگذاری ---------------- #
-
-def load_users():
-    if not os.path.exists(users_file):
-        return {}
-    with open(users_file, 'r') as f:
+# ---------------- Load/save users ---------------- #
+def load_json(file):
+    if not os.path.exists(file):
+        with open(file, "w") as f:
+            json.dump({}, f)
+    with open(file) as f:
         return json.load(f)
 
-def save_users(data):
-    with open(users_file, 'w') as f:
-        json.dump(data, f)
+def save_json(file, data):
+    with open(file, "w") as f:
+        json.dump(data, f, indent=2)
 
-def load_players():
-    with open(players_file, 'r') as f:
-        return json.load(f)
+users = load_json(USERS_FILE)
+entrants = load_json(ENTRANTS_FILE)
+players = json.load(open(PLAYERS_FILE))
 
-users = load_users()
-players = load_players()
+def save_users(u): save_json(USERS_FILE, u)
+def save_entrants(e): save_json(ENTRANTS_FILE, e)
 
-# ---------------- استارت و عضویت ---------------- #
-
-@bot.message_handler(commands=['start'])
-def start(msg):
-    user_id = str(msg.from_user.id)
-    if user_id not in users:
-        users[user_id] = {"step": "check_join", "team": "", "contact": "", "coins": 0, "gems": 0, "players": [], "lineup": [], "tactic": {}, "score": 0, "wins": 0, "games": 0}
-        save_users(users)
-
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("عضویت در کانال", url=f"https://t.me/{CHANNEL_USERNAME.strip('@')}"))
-    markup.add(types.InlineKeyboardButton("عضو شدم ✅", callback_data="check_joined"))
-    bot.send_message(msg.chat.id, "برای ادامه لطفاً عضو کانال شوید:", reply_markup=markup)
-
-@bot.callback_query_handler(func=lambda call: call.data == "check_joined")
-def check_joined(call):
-    user_id = str(call.from_user.id)
-    chat_member = bot.get_chat_member(CHANNEL_USERNAME, call.from_user.id)
-    if chat_member.status in ['member', 'administrator', 'creator']:
-        users[user_id]["step"] = "ask_team"
-        save_users(users)
-        bot.send_message(call.message.chat.id, "نام تیم خود را وارد کنید:")
-    else:
-        bot.send_message(call.message.chat.id, "لطفاً ابتدا عضو کانال شوید.")
-
-@bot.message_handler(func=lambda m: str(m.from_user.id) in users and users[str(m.from_user.id)]["step"] == "ask_team")
-def get_team_name(msg):
-    user_id = str(msg.from_user.id)
-    users[user_id]["team"] = msg.text
-    users[user_id]["step"] = "ask_contact"
-    save_users(users)
-
-    markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
-    markup.add(types.KeyboardButton("📞 ارسال شماره", request_contact=True))
-    bot.send_message(msg.chat.id, "شماره تماس خود را بفرستید:", reply_markup=markup)
-
-@bot.message_handler(content_types=['contact'])
-def get_contact(msg):
-    user_id = str(msg.from_user.id)
-    if users[user_id]["step"] == "ask_contact":
-        users[user_id]["contact"] = msg.contact.phone_number
-        users[user_id]["step"] = "done"
-        save_users(users)
-        bot.send_message(msg.chat.id, "ثبت‌نام با موفقیت انجام شد ✅", reply_markup=main_menu())
-    else:
-        bot.send_message(msg.chat.id, "شماره تماس نیاز نیست.")
-
-# ---------------- منوی اصلی ---------------- #
-
+# ---------------- منو اصلی ---------------- #
 def main_menu():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add("🛒 فروشگاه بازیکنان", "📋 ترکیب و تاکتیک")
-    markup.add("🏆 برترین‌ها", "🎮 بازی شبانه")
-    markup.add("💰 کیف پول")
+    markup.add("🎮 بازی شبانه", "🏆 برترین‌ها")
+    markup.add("🎁 پاداش روزانه", "💰 کیف پول")
     return markup
 
-@bot.message_handler(func=lambda m: m.text == "🛒 فروشگاه بازیکنان")
-def player_shop(msg):
-    user_id = str(msg.from_user.id)
-    text = "بازیکنان موجود برای خرید:\n"
-    markup = types.InlineKeyboardMarkup()
-    for p in players:
-        if p["id"] not in users[user_id]["players"]:
-            text += f"{p['id']}- {p['name']} | توان: {p['skill']} | 💎{p['price_gems']} | 🪙{p['price_coins']}\n"
-            markup.add(types.InlineKeyboardButton(f"خرید {p['name']}", callback_data=f"buy_{p['id']}"))
-    bot.send_message(msg.chat.id, text, reply_markup=markup)
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
-def buy_player(call):
-    user_id = str(call.from_user.id)
-    player_id = int(call.data.split("_")[1])
-    player = next((p for p in players if p["id"] == player_id), None)
-    if not player:
+# ---------------- /start ---------------- #
+@bot.message_handler(commands=['start'])
+def start(msg):
+    uid = str(msg.from_user.id)
+    # بررسی عضویت در کانال
+    try:
+        member = bot.get_chat_member(f"@{CHANNEL_USERNAME}", msg.from_user.id)
+        if member.status in ['left', 'kicked']:
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton("عضویت در کانال", url=f"https://t.me/{CHANNEL_USERNAME}"))
+            bot.send_message(msg.chat.id, "🛑 برای استفاده از ربات، ابتدا در کانال عضو شوید.", reply_markup=markup)
+            return
+    except:
+        bot.send_message(msg.chat.id, "⚠️ کانال یافت نشد یا نام کاربری اشتباه است.")
         return
 
-    if player_id in users[user_id]["players"]:
-        bot.answer_callback_query(call.id, "این بازیکن را قبلاً خریدید.")
+    # اگر قبلاً ثبت‌نام کرده
+    if uid in users:
+        bot.send_message(msg.chat.id, "👋 خوش برگشتی مربی!", reply_markup=main_menu())
         return
 
-    if users[user_id]["gems"] >= player["price_gems"]:
-        users[user_id]["gems"] -= player["price_gems"]
-        users[user_id]["players"].append(player_id)
+    # ثبت‌نام جدید
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    btn = types.KeyboardButton("📱 ارسال شماره من", request_contact=True)
+    markup.add(btn)
+    bot.send_message(msg.chat.id, "📱 لطفاً شماره خود را ارسال کنید:", reply_markup=markup)
+
+@bot.message_handler(content_types=['contact'])
+def get_contact(msg):
+    uid = str(msg.from_user.id)
+    if uid not in users:
+        users[uid] = {
+            "phone": msg.contact.phone_number,
+            "step": "ask_team"
+        }
         save_users(users)
-        bot.answer_callback_query(call.id, f"{player['name']} خریداری شد!")
-    else:
-        bot.answer_callback_query(call.id, "جم کافی ندارید.")
+        bot.send_message(msg.chat.id, "📛 نام تیم شما چیست؟")
 
-# ---------------- تاکتیک و ترکیب ---------------- #
+@bot.message_handler(func=lambda m: True)
+def get_team_name(msg):
+    uid = str(msg.from_user.id)
+    if uid in users and users[uid].get("step") == "ask_team":
+        users[uid].update({
+            "team": msg.text,
+            "step": None,
+            "players": [],
+            "coins": 100,
+            "gems": 2,
+            "score": 0,
+            "wins": 0,
+            "games": 0,
+            "tactic": {},
+            "last_daily": "",
+        })
+        save_users(users)
+        bot.send_message(msg.chat.id, f"✅ تیم {msg.text} ثبت شد!", reply_markup=main_menu())
+
+# ---------------- فروشگاه بازیکنان ---------------- #
+
+def get_player_price_text(p):
+    return f"{p['price_gems']} جم و {p['price_coins']} سکه"
+
+@bot.message_handler(func=lambda m: m.text == "🛒 فروشگاه بازیکنان")
+def store(msg):
+    uid = str(msg.from_user.id)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for p in players:
+        markup.add(f"{p['name']} - {p['skill']} (قیمت: {get_player_price_text(p)})")
+    markup.add("🔙 بازگشت به منو")
+    bot.send_message(msg.chat.id, "🎯 بازیکن مورد نظر را انتخاب کن:", reply_markup=markup)
+
+@bot.message_handler(func=lambda m: any(m.text and m.text.startswith(p['name']) for p in players))
+def buy_player(msg):
+    uid = str(msg.from_user.id)
+    for p in players:
+        if msg.text.startswith(p['name']):
+            user = users[uid]
+            if p["id"] in [pl["id"] for pl in user["players"]]:
+                bot.send_message(msg.chat.id, "❌ شما این بازیکن را قبلا خریداری کرده‌اید.")
+                return
+            # قیمت جم و سکه
+            if user["gems"] >= p["price_gems"] and user["coins"] >= p["price_coins"]:
+                if len(user["players"]) >= 8:
+                    bot.send_message(msg.chat.id, "⚠️ حداکثر ۸ بازیکن می‌توانید داشته باشید.")
+                    return
+                user["gems"] -= p["price_gems"]
+                user["coins"] -= p["price_coins"]
+                user["players"].append(p)
+                save_users(users)
+                bot.send_message(msg.chat.id, f"🎉 بازیکن {p['name']} با موفقیت خریداری شد.")
+            else:
+                bot.send_message(msg.chat.id, "❌ جم یا سکه کافی ندارید.")
+            return
+
+# ---------------- ترکیب و تاکتیک ---------------- #
 
 @bot.message_handler(func=lambda m: m.text == "📋 ترکیب و تاکتیک")
-def tactics_menu(msg):
+def formation_menu(msg):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("🧩 چیدمان", "🎯 تاکتیک", "🎲 سبک بازی")
-    markup.add("🚧 تله آفساید", "🔥 پرسینگ")
+    markup.add("چیدمان", "تاکتیک", "سبک بازی", "تله آفساید", "پرسینگ", "شماتیک")
     markup.add("🔙 بازگشت به منو")
-    bot.send_message(msg.chat.id, "یکی از بخش‌های تاکتیک رو انتخاب کن:", reply_markup=markup)
+    bot.send_message(msg.chat.id, "📋 بخش ترکیب و تاکتیک:", reply_markup=markup)
 
-# ادامه کد شامل سیستم بازی شبانه، ثبت بازی‌ها، رتبه‌بندی، کیف پول و ارسال فیش در پیام بعدی قرار می‌گیره...
-
-# ---------------- تنظیم تاکتیک‌ها ---------------- #
-
-@bot.message_handler(func=lambda m: m.text == "🧩 چیدمان")
-def formation(msg):
+# چیدمان
+@bot.message_handler(func=lambda m: m.text == "چیدمان")
+def set_formation(msg):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add("1-2-2", "1-1-3", "1-3-1", "1-4")
-    users[str(msg.from_user.id)]["tactic"]["formation"] = ""
-    bot.send_message(msg.chat.id, "چیدمان مورد نظر رو انتخاب کن:", reply_markup=markup)
+    markup.add("🔙 بازگشت به منو")
+    bot.send_message(msg.chat.id, "لطفا چیدمان را انتخاب کنید:", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text in ["1-2-2", "1-1-3", "1-3-1", "1-4"])
-def set_formation(msg):
+def save_formation(msg):
     uid = str(msg.from_user.id)
     users[uid]["tactic"]["formation"] = msg.text
     save_users(users)
-    bot.send_message(msg.chat.id, f"چیدمان ذخیره شد: {msg.text}")
+    bot.send_message(msg.chat.id, f"چیدمان {msg.text} ذخیره شد.", reply_markup=main_menu())
 
-@bot.message_handler(func=lambda m: m.text == "🎯 تاکتیک")
-def tactics_choice(msg):
+# تاکتیک
+@bot.message_handler(func=lambda m: m.text == "تاکتیک")
+def tactic_menu(msg):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("هجومی", "دفاعی", "متعادل")
-    bot.send_message(msg.chat.id, "تاکتیک رو انتخاب کن:", reply_markup=markup)
+    markup.add("هجومی", "دفاعی", "متعادل", "🔙 بازگشت به منو")
+    bot.send_message(msg.chat.id, "تاکتیک خود را انتخاب کنید:", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text in ["هجومی", "دفاعی", "متعادل"])
 def save_tactic(msg):
     uid = str(msg.from_user.id)
     users[uid]["tactic"]["style"] = msg.text
     save_users(users)
-    bot.send_message(msg.chat.id, f"تاکتیک ذخیره شد: {msg.text}")
+    bot.send_message(msg.chat.id, f"تاکتیک {msg.text} ذخیره شد.", reply_markup=main_menu())
 
-@bot.message_handler(func=lambda m: m.text == "🎲 سبک بازی")
-def play_style(msg):
+# سبک بازی
+@bot.message_handler(func=lambda m: m.text == "سبک بازی")
+def style_menu(msg):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("پاسکاری", "بازی با وینگ")
-    bot.send_message(msg.chat.id, "سبک بازی رو انتخاب کن:", reply_markup=markup)
+    markup.add("پاسکاری", "بازی با وینگ", "🔙 بازگشت به منو")
+    bot.send_message(msg.chat.id, "سبک بازی خود را انتخاب کنید:", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text in ["پاسکاری", "بازی با وینگ"])
-def save_playstyle(msg):
+def save_style(msg):
     uid = str(msg.from_user.id)
     users[uid]["tactic"]["play_style"] = msg.text
     save_users(users)
-    bot.send_message(msg.chat.id, f"سبک ذخیره شد: {msg.text}")
+    bot.send_message(msg.chat.id, f"سبک بازی {msg.text} ذخیره شد.", reply_markup=main_menu())
 
-@bot.message_handler(func=lambda m: m.text == "🚧 تله آفساید")
-def set_offside(msg):
+# تله آفساید
+@bot.message_handler(func=lambda m: m.text == "تله آفساید")
+def offside_menu(msg):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("بذار", "نذار")
-    bot.send_message(msg.chat.id, "تله آفساید رو فعال کنی؟", reply_markup=markup)
+    markup.add("بذار", "نذار", "🔙 بازگشت به منو")
+    bot.send_message(msg.chat.id, "تله آفساید را انتخاب کنید:", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text in ["بذار", "نذار"])
 def save_offside(msg):
     uid = str(msg.from_user.id)
     users[uid]["tactic"]["offside"] = msg.text
     save_users(users)
-    bot.send_message(msg.chat.id, f"تله آفساید تنظیم شد: {msg.text}")
+    bot.send_message(msg.chat.id, f"تله آفساید {msg.text} ذخیره شد.", reply_markup=main_menu())
 
-@bot.message_handler(func=lambda m: m.text == "🔥 پرسینگ")
-def press_choice(msg):
+# پرسینگ
+@bot.message_handler(func=lambda m: m.text == "پرسینگ")
+def press_menu(msg):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("پرس 100%", "پرس 50%", "نمی‌خوام")
-    bot.send_message(msg.chat.id, "درصد پرسینگ:", reply_markup=markup)
+    markup.add("پرس 100%", "پرس 50%", "نمی‌خوام", "🔙 بازگشت به منو")
+    bot.send_message(msg.chat.id, "میزان پرسینگ را انتخاب کنید:", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text in ["پرس 100%", "پرس 50%", "نمی‌خوام"])
 def save_press(msg):
     uid = str(msg.from_user.id)
     users[uid]["tactic"]["press"] = msg.text
     save_users(users)
-    bot.send_message(msg.chat.id, f"پرسینگ تنظیم شد: {msg.text}")
+    bot.send_message(msg.chat.id, f"پرسینگ {msg.text} ذخیره شد.", reply_markup=main_menu())
 
-@bot.message_handler(func=lambda m: m.text == "🔙 بازگشت به منو")
-def back_main(msg):
-    bot.send_message(msg.chat.id, "بازگشت به منو:", reply_markup=main_menu())
+# ---------------- شماتیک ---------------- #
 
-# ---------------- بازی شبانه ---------------- #
+def schematic_text(user_players, formation):
+    # طبقه‌بندی بازیکنان بر اساس پست
+    gk = [p for p in user_players if p['position'] == "GK"]
+    df = [p for p in user_players if p['position'] == "DF"]
+    mf = [p for p in user_players if p['position'] == "MF"]
+    fw = [p for p in user_players if p['position'] == "FW"]
 
-@bot.message_handler(func=lambda m: m.text == "🎮 بازی شبانه")
-def show_game(msg):
-    now = datetime.now()
-    if now.hour == 21:
-        bot.send_message(msg.chat.id, "🎮 بازی شما شروع شد!")
-        # اینجا باید متناسب با جدول‌ها و سیستم دو نفره اجرا بشه
-        bot.send_message(msg.chat.id, "🔍 گزارش بازی: تیم شما با ترکیب و تاکتیک خودتون به میدان رفت...")
-        # امتیازدهی ساده
-        result = random.choice(["win", "draw", "lose"])
-        uid = str(msg.from_user.id)
-        users[uid]["games"] += 1
-        if result == "win":
-            users[uid]["score"] += 20
-            users[uid]["wins"] += 1
-            bot.send_message(msg.chat.id, "🎉 بردی! +20 امتیاز")
-        elif result == "draw":
-            users[uid]["score"] += 5
-            bot.send_message(msg.chat.id, "⚖️ مساوی! +5 امتیاز")
-        else:
-            users[uid]["score"] -= 10
-            bot.send_message(msg.chat.id, "❌ باختی! -10 امتیاز")
-        save_users(users)
-    else:
-        bot.send_message(msg.chat.id, "🕘 بازی شبانه فقط ساعت ۹ شب شروع می‌شود.")
+    # جایگذاری ساده بر اساس تعداد و چیدمان
+    # فقط ۸ بازیکن در ترکیب داریم
+    # چیدمان مثلاً 1-3-1 یعنی 1 مهاجم، 3 هافبک، 1 مدافع (این مثال ساده)
 
-# ---------------- برترین‌ها ---------------- #
+    # خط پایین دروازه‌بان
+    gk_name = gk[0]['name'] if gk else "دروازه‌بان خالی"
 
-@bot.message_handler(func=lambda m: m.text == "🏆 برترین‌ها")
-def show_leaders(msg):
-    ranking = sorted(users.items(), key=lambda x: (x[1]["wins"] / x[1]["games"] if x[1]["games"] else 0, x[1]["score"]), reverse=True)
-    text = "🏆 برترین مربیان:\n"
-    for i, (uid, data) in enumerate(ranking[:10], 1):
-        percent = round((data["wins"] / data["games"])*100) if data["games"] > 0 else 0
-        text += f"{i}- {data['team']}: {percent}% برد - {data['score']} امتیاز\n"
-    bot.send_message(msg.chat.id, text)
+    # آماده سازی خطوط متن
+    lines = []
+
+    # مهاجم‌ها (خط بالا)
+    fwnames = [p['name'] for p in fw[:2]]
+    line_fw = "    ".join(fwnames) if fwnames else "مهاجم خالی"
+    lines.append(line_fw)
+
+    # هافبک‌ها (خط وسط)
+    mfnames = [p['name'] for p in mf[:2]]
+    line_mf = "    ".join(mfnames) if mfnames else "هافبک خالی"
+    lines.append(line_mf)
+
+    # مدافع‌ها (خط پایین)
+    dfnames = [p['name'] for p in df[:2]]
+    line_df = "    ".join(dfnames) if dfnames else "مدافع خالی"
+    lines.append(line_df)
+
+    # دروازه‌بان پایین‌تر
+    lines.append(f"        {gk_name}")
+
+    return "\n".join(lines)
+
+@bot.message_handler(func=lambda m: m.text == "شماتیک")
+def show_schematic(msg):
+    uid = str(msg.from_user.id)
+    user = users.get(uid)
+    if not user:
+        bot.send_message(msg.chat.id, "شما ثبت نام نکرده‌اید.")
+        return
+    if not user.get("players"):
+        bot.send_message(msg.chat.id, "لیست بازیکنی ندارید.")
+        return
+
+    formation = user["tactic"].get("formation", "1-2-2")
+    text = schematic_text(user["players"], formation)
+    bot.send_message(msg.chat.id, f"📊 شماتیک ترکیب:\n\n{text}", reply_markup=main_menu())
+
+import threading
+from time import sleep
+
+# ---------------- پاداش روزانه ---------------- #
+
+@bot.message_handler(func=lambda m: m.text == "🎁 پاداش روزانه")
+def daily_bonus(msg):
+    uid = str(msg.from_user.id)
+    user = users.get(uid)
+    if not user:
+        bot.send_message(msg.chat.id, "ابتدا ثبت‌نام کنید.")
+        return
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    if user.get("last_daily") == today_str:
+        bot.send_message(msg.chat.id, "✅ امروز پاداش روزانه را دریافت کرده‌اید.")
+        return
+    user["gems"] += 2
+    user["last_daily"] = today_str
+    save_users(users)
+    bot.send_message(msg.chat.id, "🎉 پاداش روزانه شما: ۲ جم اضافه شد.", reply_markup=main_menu())
 
 # ---------------- کیف پول ---------------- #
 
 @bot.message_handler(func=lambda m: m.text == "💰 کیف پول")
-def wallet(msg):
+def wallet_menu(msg):
     uid = str(msg.from_user.id)
-    u = users[uid]
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("تبدیل ۱۰۰ سکه به ۱ جم", callback_data="coin2gem"))
-    markup.add(types.InlineKeyboardButton("ارسال فیش خرید 💸", callback_data="send_receipt"))
-    text = f"💎 جم: {u['gems']}\n🪙 سکه: {u['coins']}\n📥 آدرس واریز ترون:\n`{TRON_ADDRESS}`"
-    bot.send_message(msg.chat.id, text, parse_mode="Markdown", reply_markup=markup)
-
-@bot.callback_query_handler(func=lambda c: c.data == "coin2gem")
-def convert_coin(c):
-    uid = str(c.from_user.id)
-    if users[uid]["coins"] >= 100:
-        users[uid]["coins"] -= 100
-        users[uid]["gems"] += 1
-        save_users(users)
-        bot.answer_callback_query(c.id, "✅ ۱ جم اضافه شد")
-    else:
-        bot.answer_callback_query(c.id, "❌ سکه کافی نداری")
-
-@bot.callback_query_handler(func=lambda c: c.data == "send_receipt")
-def ask_receipt(c):
-    bot.send_message(c.message.chat.id, "🧾 لطفاً فیش واریزی (عکس یا متن) را ارسال کنید.")
-
-@bot.message_handler(content_types=['photo', 'text'])
-def handle_receipt(msg):
-    if str(msg.from_user.id) not in users:
+    user = users.get(uid)
+    if not user:
+        bot.send_message(msg.chat.id, "ابتدا ثبت‌نام کنید.")
         return
-    if msg.photo or "trx" in msg.text.lower():
-        bot.forward_message(ADMIN_ID, msg.chat.id, msg.message_id)
-        markup = types.InlineKeyboardMarkup()
-        markup.add(
-            types.InlineKeyboardButton("✅ تأیید", callback_data=f"approve_{msg.from_user.id}"),
-            types.InlineKeyboardButton("❌ رد", callback_data=f"reject_{msg.from_user.id}")
-        )
-        bot.send_message(ADMIN_ID, f"فیش جدید از {msg.from_user.first_name}:", reply_markup=markup)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add("تبدیل سکه به جم", "ارسال فیش خرید", "🔙 بازگشت به منو")
+    bot.send_message(msg.chat.id,
+                     f"💰 موجودی شما:\nجم: {user['gems']}\nسکه: {user['coins']}",
+                     reply_markup=markup)
+
+@bot.message_handler(func=lambda m: m.text == "تبدیل سکه به جم")
+def convert_coins_to_gems(msg):
+    uid = str(msg.from_user.id)
+    user = users.get(uid)
+    if user["coins"] < 100:
+        bot.send_message(msg.chat.id, "⚠️ حداقل ۱۰۰ سکه نیاز است تا تبدیل شود.")
+        return
+    gems_added = user["coins"] // 100 * 1
+    coins_used = gems_added * 100
+    user["coins"] -= coins_used
+    user["gems"] += gems_added
+    save_users(users)
+    bot.send_message(msg.chat.id,
+                     f"✅ {coins_used} سکه به {gems_added} جم تبدیل شد.",
+                     reply_markup=main_menu())
+
+@bot.message_handler(func=lambda m: m.text == "ارسال فیش خرید")
+def send_receipt(msg):
+    uid = str(msg.from_user.id)
+    user = users.get(uid)
+    markup = types.ForceReply(selective=False)
+    bot.send_message(msg.chat.id,
+                     f"لطفا فیش پرداخت خود را (متن یا عکس) ارسال کنید. آدرس ترون برای واریز:\n{TRON_ADDRESS}",
+                     reply_markup=markup)
+    user["step"] = "waiting_receipt"
+    save_users(users)
+
+@bot.message_handler(content_types=['text', 'photo'])
+def receive_receipt(msg):
+    uid = str(msg.from_user.id)
+    user = users.get(uid)
+    if not user or user.get("step") != "waiting_receipt":
+        return
+
+    # فوروارد فیش به ادمین
+    if msg.content_type == 'photo':
+        file_id = msg.photo[-1].file_id
+        bot.send_photo(ADMIN_ID, file_id,
+                       caption=f"فیش پرداخت از {user['team']} (ID: {uid})")
+    else:
+        bot.send_message(ADMIN_ID, f"فیش پرداخت از {user['team']} (ID: {uid}):\n\n{msg.text}")
+
+    # دکمه تایید و رد برای ادمین
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton("✅ تایید", callback_data=f"approve_{uid}"),
+        types.InlineKeyboardButton("❌ رد", callback_data=f"reject_{uid}")
+    )
+    bot.send_message(ADMIN_ID, "لطفا وضعیت فیش را مشخص کنید:", reply_markup=markup)
+
+    user["step"] = None
+    save_users(users)
+    bot.send_message(msg.chat.id, "فیش شما دریافت شد. پس از بررسی به شما اطلاع داده می‌شود.")
+
+# ---------------- پاسخ به تایید/رد فیش توسط ادمین ---------------- #
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("approve_") or c.data.startswith("reject_"))
-def admin_decision(c):
-    target = c.data.split("_")[1]
-    if c.data.startswith("approve_"):
-        users[target]["coins"] += 100
+def handle_receipt_approval(call):
+    data = call.data
+    uid = data.split("_")[1]
+    user = users.get(uid)
+    if not user:
+        bot.answer_callback_query(call.id, "کاربر یافت نشد.")
+        return
+
+    if data.startswith("approve_"):
+        user["coins"] += 100  # 100 سکه اضافه می‌کنیم به کاربر
         save_users(users)
-        bot.send_message(target, "✅ فیش تأیید شد. 100 سکه اضافه شد.")
-        bot.answer_callback_query(c.id, "فیش تأیید شد.")
+        bot.edit_message_text("✅ فیش تایید شد و ۱۰۰ سکه به کاربر اضافه شد.",
+                              chat_id=call.message.chat.id,
+                              message_id=call.message.message_id)
+        bot.send_message(int(uid), "✅ فیش شما تایید شد و ۱۰۰ سکه به کیف پولتان اضافه گردید.", reply_markup=main_menu())
     else:
-        bot.send_message(target, "❌ فیش شما رد شد.")
-        bot.answer_callback_query(c.id, "فیش رد شد.")
+        bot.edit_message_text("❌ فیش رد شد.",
+                              chat_id=call.message.chat.id,
+                              message_id=call.message.message_id)
+        bot.send_message(int(uid), "❌ فیش شما رد شد. لطفا دوباره تلاش کنید.", reply_markup=main_menu())
 
-# ---------------- اجرا ---------------- #
+# ---------------- بازی شبانه ---------------- #
 
-bot.remove_webhook()
+def pair_players_randomly():
+    # جفت‌سازی رندوم بازیکنان حاضر در لیست entrants
+    uids = list(entrants.keys())
+    random.shuffle(uids)
+    pairs = []
+    while len(uids) >= 2:
+        p1 = uids.pop()
+        p2 = uids.pop()
+        pairs.append((p1, p2))
+    # اگر تعداد فرد بود، آخرین نفر بدون بازی می‌ماند و به بازی بعدی می‌رود
+    if uids:
+        last = uids.pop()
+        bot.send_message(int(last), "⚠️ شما در این دور بازی نخواهید داشت و به دور بعدی منتقل می‌شوید.")
+    return pairs
+
+def simulate_match(p1, p2):
+    user1 = users[p1]
+    user2 = users[p2]
+
+    # محاسبه قدرت تیم بر اساس ترکیب و تاکتیک و بازیکنان
+    power1 = sum(pl["skill"] for pl in user1["players"])
+    power2 = sum(pl["skill"] for pl in user2["players"])
+
+    # تأثیر تاکتیک (مثلا هجومی 10%، دفاعی -10% و متعادل 0)
+    tactics_impact = {
+        "هجومی": 1.1,
+        "دفاعی": 0.9,
+        "متعادل": 1.0
+    }
+    t1_factor = tactics_impact.get(user1["tactic"].get("style", "متعادل"), 1.0)
+    t2_factor = tactics_impact.get(user2["tactic"].get("style", "متعادل"), 1.0)
+
+    score1 = power1 * t1_factor * random.uniform(0.8, 1.2)
+    score2 = power2 * t2_factor * random.uniform(0.8, 1.2)
+
+    # تعیین نتیجه
+    if abs(score1 - score2) < 10:
+        result = "draw"
+    elif score1 > score2:
+        result = "p1_win"
+    else:
+        result = "p2_win"
+
+    return result, round(score1), round(score2)
+
+def update_user_after_match(uid, result, coins_reward, score_reward):
+    user = users[uid]
+    user["coins"] += coins_reward
+    user["score"] += score_reward
+    user["games"] += 1
+    if result == "win":
+        user["wins"] += 1
+    elif result == "lose":
+        user["wins"] += 0
+    save_users(users)
+
+def send_match_report(p1, p2, result, score1, score2):
+    user1 = users[p1]
+    user2 = users[p2]
+
+    # متن گزارش
+    if result == "draw":
+        res_text = "⚖️ بازی مساوی شد."
+        update_user_after_match(p1, "draw", 40, 5)
+        update_user_after_match(p2, "draw", 40, 5)
+    elif result == "p1_win":
+        res_text = f"🏆 تیم {user1['team']} پیروز شد!"
+        update_user_after_match(p1, "win", 100, 20)
+        update_user_after_match(p2, "lose", 20, -10)
+    else:
+        res_text = f"🏆 تیم {user2['team']} پیروز شد!"
+        update_user_after_match(p2, "win", 100, 20)
+        update_user_after_match(p1, "lose", 20, -10)
+
+    report = (f"📊 گزارش بازی شبانه:\n"
+              f"{user1['team']} ({score1}) - ({score2}) {user2['team']}\n"
+              f"{res_text}\n\n"
+              f"🎁 جوایز:\n"
+              f"🏅 امتیاز و 💰 سکه به‌روزرسانی شدند.")
+
+    bot.send_message(int(p1), report, reply_markup=main_menu())
+    bot.send_message(int(p2), report, reply_markup=main_menu())
+
+# اضافه کردن کاربر به لیست شرکت‌کنندگان بازی شبانه
+
+@bot.message_handler(func=lambda m: m.text == "🎮 بازی شبانه")
+def join_night_game(msg):
+    uid = str(msg.from_user.id)
+    if uid in entrants:
+        bot.send_message(msg.chat.id, "✅ شما قبلاً در بازی شبانه شرکت کرده‌اید. لطفا تا شروع بازی صبر کنید.", reply_markup=main_menu())
+        return
+    entrants[uid] = True
+    save_entrants(entrants)
+    bot.send_message(msg.chat.id, "✅ شما به لیست شرکت‌کنندگان بازی شبانه اضافه شدید.\nبازیتان رأس ساعت ۹ شب شروع می‌شود!", reply_markup=main_menu())
+
+# تابع اجرا کننده بازی رأس ساعت ۹ شب
+def game_scheduler():
+    while True:
+        now = datetime.now()
+        # تا رسیدن به ساعت 21:00 صبر کن
+        target = now.replace(hour=21, minute=0, second=0, microsecond=0)
+        if now >= target:
+            target += timedelta(days=1)
+        wait_seconds = (target - now).total_seconds()
+        sleep(wait_seconds)
+
+        # شروع بازی
+        bot.send_message(ADMIN_ID, "⏰ بازی شبانه آغاز شد.")
+        pairs = pair_players_randomly()
+
+        for p1, p2 in pairs:
+            result, s1, s2 = simulate_match(p1, p2)
+            send_match_report(p1, p2, result, s1, s2)
+
+        # پاک کردن لیست شرکت‌کنندگان بعد بازی
+        entrants.clear()
+        save_entrants(entrants)
+
+# اجرای ترد زمان‌بندی در پس‌زمینه
+threading.Thread(target=game_scheduler, daemon=True).start()
+
+# ---------------- برترین‌ها ---------------- #
+
+@bot.message_handler(func=lambda m: m.text == "🏆 برترین‌ها")
+def show_leaderboard(msg):
+    # میانگین برد و امتیاز مرتب شود
+    leaderboard = []
+    for uid, u in users.items():
+        games = u.get("games", 0)
+        wins = u.get("wins", 0)
+        if games == 0:
+            win_rate = 0
+        else:
+            win_rate = wins / games
+        score = u.get("score", 0)
+        leaderboard.append((uid, u["team"], win_rate, score))
+
+    leaderboard.sort(key=lambda x: (x[2], x[3]), reverse=True)
+
+    text = "🏆 برترین مربیان:\n\n"
+    for i, (uid, team, win_rate, score) in enumerate(leaderboard[:10], 1):
+        text += f"{i}- {team}: {win_rate*100:.1f}% برد - {score} امتیاز\n"
+
+    bot.send_message(msg.chat.id, text, reply_markup=main_menu())
+
+# ---------------- دکمه بازگشت عمومی ---------------- #
+@bot.message_handler(func=lambda m: m.text == "🔙 بازگشت به منو")
+def back_to_menu(msg):
+    bot.send_message(msg.chat.id, "بازگشت به منو اصلی.", reply_markup=main_menu())
+
+# ---------------- اجرای ربات ---------------- #
+print("Bot is running...")
 bot.infinity_polling()
