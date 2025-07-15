@@ -55,26 +55,33 @@ def start(m):
 def handle_contact(m):
     # no change
 
-@bot.callback_query_handler(lambda c: c.data.startswith("confirm_receipt:"))
-def confirm_receipt(c):
-    parts = c.data.split(":")
-    user_id = int(parts[1])
-    admin_id = int(parts[2])
-    amount = int(parts[3])
+@bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_receipt:"))
+def confirm_receipt(call):
+    try:
+        parts = call.data.split(":")
+        user_id = int(parts[1])
+        admin_id = int(parts[2])  # می‌تونی حذفش کنی، اینجا فقط چک ادمینه
+        amount = int(parts[3])
 
-    if c.from_user.id != ADMIN_ID:
-        return bot.answer_callback_query(c.id, "❗ فقط ادمین می‌تونه این کار رو انجام بده.")
+        if call.from_user.id != ADMIN_ID:
+            bot.answer_callback_query(call.id, "❗ فقط ادمین می‌تونه تایید کنه.")
+            return
 
-    user = get_user(user_id)
-    if not user:
-        return bot.answer_callback_query(c.id, "❌ کاربر پیدا نشد!")
+        user_data = get_user(user_id)
+        if not user_data:
+            bot.answer_callback_query(call.id, "❌ کاربر پیدا نشد.")
+            return
 
-    user['coins'] += amount
-    save_user(user_id, user)
+        user_data['coins'] = user_data.get('coins', 0) + amount
+        save_user(user_id, user_data)
 
-    bot.answer_callback_query(c.id, "✅ سکه به کاربر اضافه شد.")
-    bot.send_message(user_id, f"✅ {amount} سکه با موفقیت به حسابت اضافه شد.")
-    bot.edit_message_text("✅ رسید تایید شد و سکه اضافه شد.", c.message.chat.id, c.message.message_id)
+        bot.answer_callback_query(call.id, "✅ تایید شد.")
+        bot.send_message(user_id, f"💰 {amount} سکه به حسابت اضافه شد!")
+        bot.edit_message_text("✅ رسید تأیید شد و سکه اضافه شد.", call.message.chat.id, call.message.message_id)
+
+    except Exception as e:
+        bot.answer_callback_query(call.id, "❌ خطای داخلی! بررسی کن.")
+        print("Error in confirm_receipt:", e)
     
 @bot.callback_query_handler(lambda c:c.data=="back_to_menu")
 def back(c):
