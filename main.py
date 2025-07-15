@@ -75,6 +75,7 @@ def confirm_receipt(c):
     bot.answer_callback_query(c.id, "✅ سکه به کاربر اضافه شد.")
     bot.send_message(user_id, f"✅ {amount} سکه با موفقیت به حسابت اضافه شد.")
     bot.edit_message_text("✅ رسید تایید شد و سکه اضافه شد.", c.message.chat.id, c.message.message_id)
+    
 @bot.callback_query_handler(lambda c:c.data=="back_to_menu")
 def back(c):
     bot.send_message(c.message.chat.id,"⏮ بازگشت به منو")
