@@ -1,3 +1,2 @@
-flask
-pyTelegramBotAPI
-schedule
+python-telegram-bot>=20.0
+APScheduler>=3.10.0
