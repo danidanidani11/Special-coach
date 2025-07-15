@@ -304,7 +304,7 @@ def daily_bonus(msg):
 
 # ---------------- کیف پول ---------------- #
 
-@bot.message_handler(func=lambda m: m.text == "💰 کیف پول")
+@bot.message_handler(func=lambda m: m.text and m.text.strip() == "💰 کیف پول")
 def wallet_menu(msg):
     uid = str(msg.from_user.id)
     user = users.get(uid)
