@@ -199,34 +199,47 @@ def show_store(msg):
     markup.add("بازگشت به منو")
     bot.send_message(msg.chat.id, text, reply_markup=markup)
 
-@bot.message_handler(func=lambda m: m.text and m.text.startswith("خرید "))
+@bot.message_handler(func=lambda m: any(p['name'].lower() == m.text.lower() for p in players))
 def buy_player(msg):
     uid = str(msg.from_user.id)
-    player_name = msg.text[6:]
-    player = next((p for p in players if p["name"] == player_name), None)
+    player_name = msg.text.strip().lower()
+    user = users.get(uid)
+    if not user:
+        bot.send_message(msg.chat.id, "❌ ابتدا ثبت‌نام کنید.")
+        return
+
+    player = next((p for p in players if p['name'].lower() == player_name), None)
     if not player:
-        bot.send_message(msg.chat.id, "⚠️ بازیکن یافت نشد.")
+        bot.send_message(msg.chat.id, "❌ بازیکن موردنظر پیدا نشد.")
         return
 
-    # بررسی سکه و جم کاربر
-    wallet = users[uid].get("wallet", {"coins": 0, "gems": 0})
-    if wallet.get("coins", 0) < player["price_coins"] or wallet.get("gems", 0) < player["price_gems"]:
-        bot.send_message(msg.chat.id, "⚠️ سکه یا جم کافی نداری!")
+    wallet = user.get("wallet", {"coins":0, "gems":0})
+    # اول با جم چک می‌کنیم بعد با سکه
+    if wallet.get("gems", 0) >= player["price_gems"]:
+        wallet["gems"] -= player["price_gems"]
+    elif wallet.get("coins", 0) >= player["price_coins"]:
+        wallet["coins"] -= player["price_coins"]
+    else:
+        bot.send_message(msg.chat.id, "❌ سکه یا جم کافی ندارید.")
         return
-
-    # کم کردن هزینه
-    wallet["coins"] -= player["price_coins"]
-    wallet["gems"] -= player["price_gems"]
-    users[uid]["wallet"] = wallet
 
     # اضافه کردن بازیکن به تیم
-    if "team_players" not in users[uid]:
-        users[uid]["team_players"] = []
-    users[uid]["team_players"].append(player)
+    team = user.get("team_players", [])
+    if len(team) >= 8:
+        bot.send_message(msg.chat.id, "❌ حداکثر ۸ بازیکن در تیم می‌توانید داشته باشید.")
+        return
+
+    if player["name"] in team:
+        bot.send_message(msg.chat.id, "❌ این بازیکن قبلا خریداری شده است.")
+        return
+
+    team.append(player["name"])
+    user["team_players"] = team
+    user["wallet"] = wallet
+    users[uid] = user
     save_users()
 
-    bot.send_message(msg.chat.id, f"✅ بازیکن {player_name} با موفقیت خریداری شد!", reply_markup=main_menu())
-
+    bot.send_message(msg.chat.id, f"✅ بازیکن {player['name']} با موفقیت خریداری شد.", reply_markup=back_to_menu_keyboard())
 def show_wallet(msg):
     uid = str(msg.from_user.id)
     wallet = users[uid].get("wallet", {"coins": 0, "gems": 0})
