@@ -3,9 +3,6 @@ from telebot import types
 import json, os
 from flask import Flask, request
 
-with open("data/players.json", "r", encoding="utf-8") as f:
-    players = json.load(f)
-
 TOKEN = '7721577419:AAGF6eX2kt5sD4FADDNNIuY0WJE7wBrnhFc'
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
@@ -127,6 +124,9 @@ def check_subscription(call):
             bot.answer_callback_query(call.id, "⛔ هنوز عضو نیستی!", show_alert=True)
     except Exception as e:
         bot.answer_callback_query(call.id, "⛔ خطا در بررسی عضویت. لطفا دوباره امتحان کن.", show_alert=True)
+
+with open("data/players.json", "r", encoding="utf-8") as f:
+    players = json.load(f)
 
 # منوی اصلی
 @bot.message_handler(func=lambda m: users.get(str(m.from_user.id), {}).get("registered") == True)
