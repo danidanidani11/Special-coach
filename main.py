@@ -482,7 +482,7 @@ def send_match_report(p1, p2, result, score1, score2):
 
 # اضافه کردن کاربر به لیست شرکت‌کنندگان بازی شبانه
 
-@bot.message_handler(func=lambda m: m.text == "🎮 بازی شبانه")
+@bot.message_handler(func=lambda m: m.text and m.text.strip() == "🎮 بازی شبانه")
 def join_night_game(msg):
     uid = str(msg.from_user.id)
     if uid in entrants:
