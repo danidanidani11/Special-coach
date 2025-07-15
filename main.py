@@ -520,7 +520,7 @@ threading.Thread(target=game_scheduler, daemon=True).start()
 
 # ---------------- برترین‌ها ---------------- #
 
-@bot.message_handler(func=lambda m: m.text == "🏆 برترین‌ها")
+@bot.message_handler(func=lambda m: m.text and m.text.strip() == "🏆 برترین‌ها")
 def show_leaderboard(msg):
     # میانگین برد و امتیاز مرتب شود
     leaderboard = []
