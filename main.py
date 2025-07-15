@@ -149,7 +149,7 @@ def buy_player(msg):
 
 # ---------------- ترکیب و تاکتیک ---------------- #
 
-@bot.message_handler(func=lambda m: m.text == "📋 ترکیب و تاکتیک")
+@bot.message_handler(func=lambda m: m.text and m.text.strip() == "🧠 ترکیب و تاکتیک")
 def formation_menu(msg):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add("چیدمان", "تاکتیک", "سبک بازی", "تله آفساید", "پرسینگ", "شماتیک")
