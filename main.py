@@ -498,11 +498,11 @@ def check_subscription(call):
     try:
         chat_member = bot.get_chat_member("@Specialcoach1", call.from_user.id)
         if chat_member.status in ['member', 'administrator', 'creator']:
-            bot.answer_callback_query(call.id, "✅ شما عضو هستید!")
-            # بررسی کن آیا قبلاً ثبت‌نام کرده یا نه
+            bot.answer_callback_query(call.id, "✅ عضویت تایید شد!")
+
             uid = str(call.from_user.id)
             if uid in users and users[uid].get("registered"):
-                bot.send_message(call.message.chat.id, "👋 خوش اومدی!", reply_markup=main_menu())
+                bot.send_message(call.message.chat.id, "👋 خوش اومدی به ربات!", reply_markup=main_menu())
             else:
                 users[uid] = {"step": "ask_team", "registered": False}
                 save_users()
@@ -510,7 +510,7 @@ def check_subscription(call):
         else:
             bot.answer_callback_query(call.id, "⛔ هنوز عضو نیستی!", show_alert=True)
     except:
-        bot.answer_callback_query(call.id, "⛔ نتونستم بررسی کنم. مطمئن شو عضو شدی.", show_alert=True)
+        bot.answer_callback_query(call.id, "⛔ خطا در بررسی عضویت. لطفاً دوباره امتحان کن.", show_alert=True)
 
 # ---------- شروع ربات ----------
 if __name__ == "__main__":
