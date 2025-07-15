@@ -3,6 +3,9 @@ from telebot import types
 import json, os
 from flask import Flask, request
 
+with open("data/players.json", "r", encoding="utf-8") as f:
+    players = json.load(f)
+
 TOKEN = '7721577419:AAGF6eX2kt5sD4FADDNNIuY0WJE7wBrnhFc'
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
