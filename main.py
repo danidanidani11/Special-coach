@@ -240,13 +240,30 @@ def buy_player(msg):
     save_users()
 
     bot.send_message(msg.chat.id, f"✅ بازیکن {player['name']} با موفقیت خریداری شد.", reply_markup=back_to_menu_keyboard())
+@bot.message_handler(func=lambda m: m.text == "💰 کیف پول")
 def show_wallet(msg):
     uid = str(msg.from_user.id)
-    wallet = users[uid].get("wallet", {"coins": 0, "gems": 0})
-    text = f"💰 کیف پول شما:\nسکه: {wallet.get('coins',0)}\nجم: {wallet.get('gems',0)}\n\nبرای خرید جم، فیش واریز رو ارسال کن."
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("بازگشت به منو")
-    bot.send_message(msg.chat.id, text, reply_markup=markup)
+    user = users.get(uid)
+    if not user:
+        bot.send_message(msg.chat.id, "❌ ابتدا ثبت‌نام کنید.")
+        return
+
+    wallet = user.get("wallet", {"coins":0, "gems":0})
+    text = f"""💰 کیف پول شما:
+سکه‌ها: {wallet.get('coins',0)}
+جم‌ها: {wallet.get('gems',0)}
+
+💳 آدرس ترون برای واریز:
+`TJ4xrwKJzKjk6FgKfuuqwah3Az5Ur22kJb`
+
+💸 نرخ تبدیل:
+۴ ترون = ۱۰۰ سکه = ۱ جم
+
+برای تبدیل سکه به جم، روی دکمه زیر بزنید."""
+
+    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("🔄 تبدیل سکه به جم", "🔙 بازگشت به منو")
+    bot.send_message(msg.chat.id, text, parse_mode="Markdown", reply_markup=markup)
 
 @bot.message_handler(content_types=['photo', 'text'])
 def handle_payment_proof(msg):
