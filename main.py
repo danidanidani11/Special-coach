@@ -471,6 +471,28 @@ def webhook():
     bot.process_new_updates([update])
     return "!", 200
 
+@bot.message_handler(func=lambda m: m.text == "🔄 تبدیل سکه به جم")
+def convert_coins_to_gems(msg):
+    uid = str(msg.from_user.id)
+    user = users.get(uid)
+    wallet = user.get("wallet", {"coins":0, "gems":0})
+
+    coins = wallet.get("coins",0)
+    if coins < 100:
+        bot.send_message(msg.chat.id, "❌ حداقل ۱۰۰ سکه نیاز دارید برای تبدیل به ۱ جم.")
+        return
+
+    gems_to_add = coins // 100
+    coins_left = coins % 100
+
+    wallet["gems"] = wallet.get("gems",0) + gems_to_add
+    wallet["coins"] = coins_left
+    user["wallet"] = wallet
+    users[uid] = user
+    save_users()
+
+    bot.send_message(msg.chat.id, f"✅ تبدیل موفق: {gems_to_add} جم اضافه شد.\nسکه‌های باقی‌مانده: {coins_left}", reply_markup=back_to_menu_keyboard())
+
 if __name__ == "__main__":
     # اگر میخوای polling، این خط رو اینجا بذار (اما برای رندر بهتره webhook باشه)
     # bot.polling(none_stop=True)
