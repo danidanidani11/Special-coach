@@ -493,6 +493,25 @@ def receive_update():
     bot.process_new_updates([json_update])
     return {"ok": True}
 
+@bot.callback_query_handler(func=lambda call: call.data == "check_sub")
+def check_subscription(call):
+    try:
+        chat_member = bot.get_chat_member("@Specialcoach1", call.from_user.id)
+        if chat_member.status in ['member', 'administrator', 'creator']:
+            bot.answer_callback_query(call.id, "✅ شما عضو هستید!")
+            # بررسی کن آیا قبلاً ثبت‌نام کرده یا نه
+            uid = str(call.from_user.id)
+            if uid in users and users[uid].get("registered"):
+                bot.send_message(call.message.chat.id, "👋 خوش اومدی!", reply_markup=main_menu())
+            else:
+                users[uid] = {"step": "ask_team", "registered": False}
+                save_users()
+                bot.send_message(call.message.chat.id, "🏟 نام تیم خود را وارد کن:")
+        else:
+            bot.answer_callback_query(call.id, "⛔ هنوز عضو نیستی!", show_alert=True)
+    except:
+        bot.answer_callback_query(call.id, "⛔ نتونستم بررسی کنم. مطمئن شو عضو شدی.", show_alert=True)
+
 # ---------- شروع ربات ----------
 if __name__ == "__main__":
     # فلکسی یا پولینگ رو فقط یکی فعال باشه؛ اینجا فرض بر وبهوک هست
