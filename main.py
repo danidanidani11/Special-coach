@@ -55,25 +55,25 @@ def main_menu():
 def start(msg):
     uid = str(msg.from_user.id)
 
-    # 🔒 عضویت اجباری
+    # مرحله 1: چک عضویت در کانال
     try:
         chat_member = bot.get_chat_member("@Specialcoach1", msg.from_user.id)
         if chat_member.status not in ['member', 'administrator', 'creator']:
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("📢 عضویت در کانال", url="https://t.me/Specialcoach1"))
             markup.add(types.InlineKeyboardButton("✅ عضو شدم", callback_data="check_sub"))
-            bot.send_message(msg.chat.id, "🔒 لطفا ابتدا در کانال عضو شوید:", reply_markup=markup)
+            bot.send_message(msg.chat.id, "🔒 برای ادامه ابتدا در کانال عضو شوید:", reply_markup=markup)
             return
     except Exception as e:
-        bot.send_message(msg.chat.id, "⚠️ خطا در بررسی عضویت در کانال.")
+        bot.send_message(msg.chat.id, "⚠️ خطا در بررسی عضویت در کانال!", reply_markup=types.ReplyKeyboardRemove())
         return
 
-    # اگر قبلاً ثبت‌نام شده → برو به منو
+    # مرحله 2: اگر قبلاً ثبت‌نام کرده، فقط بفرستش به منو
     if uid in users and users[uid].get("registered"):
         bot.send_message(msg.chat.id, "👋 خوش اومدی دوباره!", reply_markup=main_menu())
         return
 
-    # ثبت‌نام جدید
+    # مرحله 3: شروع ثبت‌نام (اگر بار اولشه)
     users[uid] = {"step": "ask_team", "registered": False}
     save_users()
     bot.send_message(msg.chat.id, "🏟 نام تیم خود را وارد کن:")
