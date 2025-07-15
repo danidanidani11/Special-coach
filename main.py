@@ -55,18 +55,26 @@ def start(m):
 def handle_contact(m):
     # no change
 
-@bot.callback_query_handler(lambda c:c.data.startswith("confirm_receipt:"))
+@bot.callback_query_handler(lambda c: c.data.startswith("confirm_receipt:"))
 def confirm_receipt(c):
-    parts=c.data.split(":")
-    uid,p=int(parts[1]),int(parts[2])
-    if c.from_user.id!=ADMIN_ID:
-        return bot.answer_callback_query(c.id,"❗ فقط ادمین میتونه.")
-    u=get_user(p)
-    amt=int(parts[3])
-    u['coins']+=amt
-    save_user(p,u)
-    bot.answer_callback_query(c.id,"✅ سکه اضافه شد")
-    bot.send_message(p,f"✅ {amt} سکه به حسابت اضافه شد.")
+    parts = c.data.split(":")
+    user_id = int(parts[1])
+    admin_id = int(parts[2])  # این مقدار فقط برای بررسی سازگاری گذاشته شده، می‌تونی حذفش کنی
+    amount = int(parts[3])
+
+    if c.from_user.id != ADMIN_ID:
+        return bot.answer_callback_query(c.id, "❗ فقط ادمین می‌تونه این کار رو انجام بده.")
+
+    user = get_user(user_id)
+    if not user:
+        return bot.answer_callback_query(c.id, "❌ کاربر پیدا نشد!")
+
+    user['coins'] += amount
+    save_user(user_id, user)
+
+    bot.answer_callback_query(c.id, "✅ سکه به کاربر اضافه شد.")
+    bot.send_message(user_id, f"✅ {amount} سکه با موفقیت به حسابت اضافه شد.")
+    bot.edit_message_text("✅ رسید تایید شد و سکه اضافه شد.", c.message.chat.id, c.message.message_id)
 
 @bot.callback_query_handler(lambda c:c.data=="back_to_menu")
 def back(c):
