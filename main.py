@@ -266,15 +266,22 @@ def show_wallet(msg):
     bot.send_message(msg.chat.id, text, parse_mode="Markdown", reply_markup=markup)
 
 @bot.message_handler(content_types=['photo', 'text'])
-def handle_payment_proof(msg):
+def handle_payment_receipt(msg):
     uid = str(msg.from_user.id)
-    # فرض کنیم پیام فیش واریز است
-    if users.get(uid, {}).get("registered") and msg.content_type in ['photo', 'text']:
-        bot.forward_message(ADMIN_ID, msg.chat.id, msg.message_id)
-        markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("✅ تایید", callback_data=f"approve_{uid}"))
-        markup.add(types.InlineKeyboardButton("❌ رد", callback_data=f"reject_{uid}"))
-        bot.send_message(ADMIN_ID, f"📥 فیش واریز از {users[uid]['team_name']} دریافت شد.", reply_markup=markup)
+    admin_id = 5542927340
+
+    if msg.content_type == "photo":
+        bot.forward_message(admin_id, msg.chat.id, msg.message_id)
+    elif msg.content_type == "text":
+        bot.send_message(admin_id, f"🧾 فیش پرداختی:\nاز کاربر: {msg.from_user.first_name}\n\nمتن:\n{msg.text}")
+
+    # دکمه تایید و رد برای ادمین
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.add(
+        telebot.types.InlineKeyboardButton("✅ تایید", callback_data=f"approve_{uid}"),
+        telebot.types.InlineKeyboardButton("❌ رد", callback_data=f"reject_{uid}")
+    )
+    bot.send_message(admin_id, "لطفا وضعیت فیش را تایید یا رد کنید:", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("approve_") or call.data.startswith("reject_"))
 def handle_payment_approval(call):
