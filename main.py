@@ -286,7 +286,7 @@ from time import sleep
 
 # ---------------- پاداش روزانه ---------------- #
 
-@bot.message_handler(func=lambda m: m.text == "🎁 پاداش روزانه")
+@bot.message_handler(func=lambda m: m.text and m.text.strip() == "🎁 پاداش روزانه")
 def daily_bonus(msg):
     uid = str(msg.from_user.id)
     user = users.get(uid)
