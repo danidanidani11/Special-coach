@@ -128,18 +128,6 @@ def check_subscription(call):
     except Exception as e:
         bot.answer_callback_query(call.id, "⛔ خطا در بررسی عضویت. لطفا دوباره امتحان کن.", show_alert=True)
 
-# لیست بازیکنان نمونه (می‌تونی این رو جداگانه بذاری و از فایل بارگذاری کنی)
-players = [
-    # بازیکنان ضعیف (قیمت کم)
-    {"name": "Player A", "overall": 60, "price_coins": 10, "price_gems": 1, "position": "FW"},
-    {"name": "Player B", "overall": 62, "price_coins": 15, "price_gems": 1, "position": "MF"},
-    # ... 23 بازیکن ضعیف دیگه
-    # بازیکنان قوی (قیمت بالا)
-    {"name": "Star Player 1", "overall": 90, "price_coins": 300, "price_gems": 50, "position": "FW"},
-    {"name": "Star Player 2", "overall": 88, "price_coins": 250, "price_gems": 45, "position": "GK"},
-    # ... بقیه بازیکنان خوب
-]
-
 # منوی اصلی
 @bot.message_handler(func=lambda m: users.get(str(m.from_user.id), {}).get("registered") == True)
 def main_menu_handler(msg):
