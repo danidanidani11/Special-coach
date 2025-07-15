@@ -22,6 +22,18 @@ def load_users():
     with open(users_path, "r") as f:
         return json.load(f)
 
+def assign_starting_players(uid):
+    # ۵ بازیکن ضعیف اولیه به صورت player1 ... player5
+    starting_players = ["player1", "player2", "player3", "player4", "player5"]
+
+    user = users.get(uid)
+    if not user:
+        return
+
+    user["team_players"] = starting_players
+    users[uid] = user
+    save_users()
+
 def save_users(data=None):
     if data:
         with open(users_path, "w") as f:
