@@ -540,7 +540,6 @@ def back_to_menu(msg):
     bot.send_message(msg.chat.id, "بازگشت به منو اصلی.", reply_markup=main_menu())
 
 # ---------------- اجرای ربات ---------------- #
-bot.remove_webhook()
-bot.infinity_polling()
 print("Bot is running...")
+bot.remove_webhook()
 bot.infinity_polling()
