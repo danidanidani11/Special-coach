@@ -115,7 +115,7 @@ def get_team_name(msg):
 def get_player_price_text(p):
     return f"{p['price_gems']} جم و {p['price_coins']} سکه"
 
-@bot.message_handler(func=lambda m: m.text == "🛒 فروشگاه بازیکنان")
+@bot.message_handler(func=lambda m: m.text and m.text.strip() == "🛒 فروشگاه بازیکنان")
 def store(msg):
     uid = str(msg.from_user.id)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
