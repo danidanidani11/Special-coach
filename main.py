@@ -9,6 +9,8 @@ import threading
 import datetime
 from datetime import date
 
+bot.set_webhook(url=WEBHOOK_URL)
+
 TOKEN = '7721577419:AAGF6eX2kt5sD4FADDNNIuY0WJE7wBrnhFc'
 URL = 'https://special-coach.onrender.com'
 CHANNEL_USERNAME = "@Specialcoach1"
@@ -569,5 +571,8 @@ import json
 import datetime
 import random
 from datetime import date
+
+bot.remove_webhook()
+bot.set_webhook(url=WEBHOOK_URL)
 
 bot = telebot.TeleBot(TOKEN)
