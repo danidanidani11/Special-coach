@@ -55,7 +55,8 @@ def main_menu():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("📋 ترکیب و تاکتیک", "🏪 فروشگاه بازیکن")
     markup.row("🎮 بازی شبانه", "📄 گزارش بازی")
-    markup.row("👛 کیف پول")
+    markup.row("👛 کیف پول", "🎁 پاداش روزانه")
+    markup.row("🏆 برترین‌ها")
     return markup
 
 # منوی بازگشت
@@ -141,7 +142,8 @@ def contact_handler(message):
         "score": 0,
         "coins": 100,
         "gems": 2,
-        "match_history": []
+        "match_history": [],
+        "last_reward": ""
     }
 
     save_users(users)
@@ -455,6 +457,81 @@ def handle_receipt_admin(c):
     else:
         bot.send_message(int(uid), "❌ فیش رد شد.")
         bot.edit_message_text("❌ رد شد", c.message.chat.id, c.message.message_id)
+
+# 🎁 پاداش روزانه
+@bot.message_handler(func=lambda m: m.text == "🎁 پاداش روزانه")
+def daily_reward(m):
+    try:
+        uid = str(m.from_user.id)
+        users = load_users()
+        
+        if uid not in users:
+            return bot.send_message(m.chat.id, "❌ ابتدا ثبت‌نام کنید")
+        
+        today = datetime.datetime.now().strftime("%Y-%m-%d")
+        last_reward = users[uid].get("last_reward", "")
+        
+        if last_reward == today:
+            bot.send_message(m.chat.id, "⏳ امروز پاداش خود را دریافت کرده‌اید!")
+            return
+        
+        users[uid]["gems"] = users[uid].get("gems", 0) + 2
+        users[uid]["last_reward"] = today
+        save_users(users)
+        
+        bot.send_message(m.chat.id, f"🎉 2 جم دریافت کردید!\n💎 موجودی جم: {users[uid]['gems']}")
+    except Exception as e:
+        print(f"Error in daily reward: {str(e)}")
+        bot.send_message(m.chat.id, "⚠️ خطایی رخ داد. لطفاً بعداً تلاش کنید.")
+
+# 🏆 برترین‌ها
+@bot.message_handler(func=lambda m: m.text == "🏆 برترین‌ها")
+def top_players(m):
+    try:
+        users = load_users()
+        leaderboard = []
+        
+        for uid, data in users.items():
+            if "team" not in data or not data["team"]:
+                continue
+                
+            team_name = data["team"]
+            matches = data.get("match_history", [])
+            total_matches = len(matches)
+            
+            if total_matches == 0:
+                continue
+                
+            wins = sum(1 for match in matches if "برنده شد" in match and team_name in match)
+            win_rate = (wins / total_matches) * 100
+            score = data.get("score", 0)
+            
+            leaderboard.append({
+                "name": team_name,
+                "score": score,
+                "win_rate": win_rate,
+                "wins": wins,
+                "matches": total_matches
+            })
+        
+        # مرتب‌سازی: اول امتیاز، سپس درصد برد
+        leaderboard.sort(key=lambda x: (-x["score"], -x["win_rate"]))
+        
+        # ساخت متن خروجی
+        text = "🏆 جدول برترین تیم‌ها:\n\n"
+        for rank, team in enumerate(leaderboard[:10], 1):
+            text += (f"{rank}. {team['name']}\n"
+                    f"⭐ امتیاز: {team['score']} | "
+                    f"📊 {team['win_rate']:.1f}% برد\n"
+                    f"✅ {team['wins']} برد از {team['matches']} بازی\n\n")
+        
+        if not leaderboard:
+            text = "هنوز هیچ بازی انجام نشده است."
+            
+        bot.send_message(m.chat.id, text)
+    except Exception as e:
+        print(f"Error in leaderboard: {str(e)}")
+        bot.send_message(m.chat.id, "⚠️ خطا در دریافت رده‌بندی")
 
 # اجرای فل ask با webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
