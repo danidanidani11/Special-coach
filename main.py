@@ -30,7 +30,6 @@ ALL_PLAYERS = {
     "player26": {"name": "Messi", "overall": 93, "position": "FW", "price_coins": 500, "price_gems": 10},
     "player27": {"name": "Ronaldo", "overall": 91, "position": "FW", "price_coins": 480, "price_gems": 10},
     "player28": {"name": "Modric", "overall": 90, "position": "MF", "price_coins": 450, "price_gems": 9},
-    ...
     "player50": {"name": "Ter Stegen", "overall": 88, "position": "GK", "price_coins": 400, "price_gems": 8}
 }
 
