@@ -45,6 +45,12 @@ def load_data():
             # بازیکنان ضعیف (1 جم)
             "p1": {"name": "حسین معطری", "overall": 55, "price_gems": 1, "price_coins": 100, "position": "FW"},
             "p2": {"name": "علی کریمی", "overall": 58, "price_gems": 1, "price_coins": 100, "position": "MF"},
+            "p3": {"name": "رضا قوچان نژاد", "overall": 60, "price_gems": 1, "price_coins": 100, "position": "FW"},
+            "p4": {"name": "وحید امیری", "overall": 62, "price_gems": 1, "price_coins": 100, "position": "MF"},
+            "p5": {"name": "علیرضا بیرانوند", "overall": 65, "price_gems": 1, "price_coins": 100, "position": "GK"},
+            # بازیکنان متوسط (3-5 جم)
+            "p6": {"name": "سردار آزمون", "overall": 75, "price_gems": 3, "price_coins": 300, "position": "FW"},
+            "p7": {"name": "علیرضا جهانبخش", "overall": 74, "price_gems": 3, "price_coins": 300, "position": "MF"},
             # ... سایر بازیکنان
         }
     
@@ -68,7 +74,7 @@ def check_channel_membership(user_id):
         return False
 
 # --- ثبت نام سه مرحله‌ای ---
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['start', 'شروع'])
 def start(message):
     user_id = message.from_user.id
     
@@ -88,6 +94,11 @@ def start(message):
 def process_team_name(message):
     user_id = message.from_user.id
     team_name = message.text
+    
+    if len(team_name) < 3:
+        bot.send_message(user_id, "⚠️ نام تیم باید حداقل 3 حرف باشد! لطفا مجددا وارد کنید:")
+        bot.register_next_step_handler(message, process_team_name)
+        return
     
     users_db[str(user_id)] = {
         "team_name": team_name,
@@ -138,7 +149,7 @@ def main_menu(user_id):
         return
     
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.row("⚽ ترکیب و تاکتیک", "🛒 فروشگاه بازیکن")
+    keyboard.row("/start", "⚽ ترکیب و تاکتیک", "🛒 فروشگاه بازیکن")
     keyboard.row("🎮 بازی روزانه", "📊 گزارش بازی")
     keyboard.row("👛 کیف پول", "🎁 پاداش روزانه")
     keyboard.row("🏆 برترین‌ها")
@@ -159,12 +170,11 @@ def player_shop(message):
     for player_id, player in players_db.items():
         if player_id not in user_data["players"]:
             btn_text = f"{player['name']} ({player['position']}) ⭐{player['overall']}"
-            callback_data = f"buy_{player_id}"
             
             if player["price_gems"] <= user_data["gems"] and player["price_coins"] <= user_data["coins"]:
                 keyboard.add(types.InlineKeyboardButton(
                     f"{btn_text} - 💎{player['price_gems']} 🪙{player['price_coins']}",
-                    callback_data=callback_data
+                    callback_data=f"buy_{player_id}"
                 ))
             else:
                 keyboard.add(types.InlineKeyboardButton(
@@ -203,42 +213,67 @@ def team_management(message):
     
     bot.send_message(user_id, text, reply_markup=keyboard)
 
-# --- بازی روزانه ---
-@bot.message_handler(func=lambda m: m.text == "🎮 بازی روزانه" and str(m.from_user.id) in users_db)
-def daily_game(message):
-    user_id = message.from_user.id
-    users_db[str(user_id)]["in_game"] = True
-    save_data()
-    
-    now = datetime.now().strftime("%H:%M")
-    if now >= GAME_TIME:
-        bot.send_message(user_id, "⏳ بازی امروز به زودی شروع می‌شود...")
-    else:
-        bot.send_message(user_id, f"✅ نام شما در لیست بازی‌های امروز ثبت شد. بازی‌ها ساعت {GAME_TIME} شروع می‌شوند.")
-
-# --- گزارش بازی ---
-@bot.message_handler(func=lambda m: m.text == "📊 گزارش بازی" and str(m.from_user.id) in users_db)
-def match_report(message):
+# --- کیف پول ---
+@bot.message_handler(func=lambda m: m.text == "👛 کیف پول" and str(m.from_user.id) in users_db)
+def wallet(message):
     user_id = message.from_user.id
     user_data = users_db[str(user_id)]
     
-    if not user_data["matches"]:
-        bot.send_message(user_id, "هنوز هیچ بازی انجام نداده‌اید!")
+    text = f"💰 کیف پول شما:\n\n"
+    text += f"🪙 سکه: {user_data['coins']}\n"
+    text += f"💎 جم: {user_data['gems']}\n\n"
+    text += f"🔹 آدرس ترون: {TRON_ADDRESS}\n"
+    text += f"🔸 نرخ تبدیل: هر 100 سکه = 1 جم = 4 ترون\n\n"
+    
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(types.InlineKeyboardButton("💸 تبدیل سکه به جم", callback_data="convert_coins"))
+    keyboard.add(types.InlineKeyboardButton("📤 ارسال فیش واریزی", callback_data="send_receipt"))
+    
+    bot.send_message(user_id, text, reply_markup=keyboard)
+
+# --- پاداش روزانه ---
+@bot.message_handler(func=lambda m: m.text == "🎁 پاداش روزانه" and str(m.from_user.id) in users_db)
+def daily_reward(message):
+    user_id = message.from_user.id
+    user_data = users_db[str(user_id)]
+    
+    today = datetime.now().strftime("%Y-%m-%d")
+    if user_data["last_daily_reward"] == today:
+        bot.send_message(user_id, "⚠️ شما امروز پاداش خود را دریافت کرده‌اید!")
         return
     
-    text = "📊 گزارش بازی‌های شما:\n\n"
-    for i, match in enumerate(user_data["matches"][-5:], 1):  # نمایش 5 بازی آخر
-        result = "✅ برنده" if match["result"] == "win" else "🔶 مساوی" if match["result"] == "draw" else "❌ بازنده"
-        text += f"🎮 بازی {i}:\n"
-        text += f"🆚 حریف: {match['opponent']}\n"
-        text += f"🏆 نتیجه: {result}\n"
-        text += f"📊 نتیجه نهایی: {match['score']}\n"
-        text += f"⏰ تاریخ: {match['date']}\n\n"
+    user_data["gems"] += 2
+    user_data["last_daily_reward"] = today
+    save_data()
+    
+    bot.send_message(user_id, "🎉 2 جم به عنوان پاداش روزانه به کیف پول شما اضافه شد!")
+
+# --- برترین‌ها ---
+@bot.message_handler(func=lambda m: m.text == "🏆 برترین‌ها")
+def top_players(message):
+    user_id = message.from_user.id
+    
+    # محاسبه درصد برد برای هر کاربر
+    top_list = []
+    for uid, data in users_db.items():
+        total_games = data["wins"] + data["draws"] + data["losses"]
+        if total_games > 0:
+            win_rate = (data["wins"] / total_games) * 100
+            top_list.append({
+                "team": data["team_name"],
+                "win_rate": win_rate,
+                "score": data["score"]
+            })
+    
+    # مرتب‌سازی بر اساس درصد برد
+    top_list.sort(key=lambda x: (-x["win_rate"], -x["score"]))
+    
+    # نمایش 10 تیم برتر
+    text = "🏆 10 تیم برتر:\n\n"
+    for i, team in enumerate(top_list[:10], 1):
+        text += f"{i}. {team['team']} - {team['win_rate']:.1f}% برد - ⭐{team['score']}\n"
     
     bot.send_message(user_id, text)
-
-# --- سایر بخش‌ها (کیف پول، پاداش روزانه، برترین‌ها) ---
-# ... (کدهای قبلی بدون تغییر)
 
 # --- مدیریت callback‌ها ---
 @bot.callback_query_handler(func=lambda call: True)
@@ -272,8 +307,26 @@ def callback_handler(call):
     elif data == "toggle_offside":
         toggle_offside(user_id)
     
+    elif data == "convert_coins":
+        convert_coins(user_id)
+    
+    elif data == "send_receipt":
+        request_receipt(user_id)
+    
     elif data == "no_funds":
         bot.answer_callback_query(call.id, "موجودی شما برای خرید این بازیکن کافی نیست!", show_alert=True)
+    
+    elif data.startswith("set_formation_"):
+        set_formation(user_id, data[13:])
+    
+    elif data.startswith("set_tactic_"):
+        set_tactic(user_id, data[11:])
+    
+    elif data.startswith("set_style_"):
+        set_style(user_id, data[10:])
+    
+    elif data.startswith("set_pressing_"):
+        set_pressing(user_id, data[13:])
 
 # --- توابع کمکی ---
 def buy_player(user_id, player_id):
@@ -312,7 +365,61 @@ def change_formation(user_id):
     
     bot.send_message(user_id, "🔀 لطفا ترکیب مورد نظر خود را انتخاب کنید:", reply_markup=keyboard)
 
-# ... (توابع مشابه برای تغییر تاکتیک، سبک بازی، پرسینگ)
+def set_formation(user_id, formation):
+    users_db[str(user_id)]["formation"] = formation
+    save_data()
+    team_management(bot.send_message(user_id, f"✅ ترکیب تیم به {formation} تغییر یافت!"))
+
+def change_tactic(user_id):
+    keyboard = types.InlineKeyboardMarkup()
+    tactics = ["هجومی", "دفاعی", "متعادل"]
+    
+    for tactic in tactics:
+        keyboard.add(types.InlineKeyboardButton(
+            tactic,
+            callback_data=f"set_tactic_{tactic}"
+        ))
+    
+    bot.send_message(user_id, "🎯 لطفا تاکتیک مورد نظر خود را انتخاب کنید:", reply_markup=keyboard)
+
+def set_tactic(user_id, tactic):
+    users_db[str(user_id)]["tactic"] = tactic
+    save_data()
+    team_management(bot.send_message(user_id, f"✅ تاکتیک تیم به {tactic} تغییر یافت!"))
+
+def change_style(user_id):
+    keyboard = types.InlineKeyboardMarkup()
+    styles = ["پاسکاری", "بازی با وینگ", "ضربات کرنر", "ضربات ایستگاهی"]
+    
+    for style in styles:
+        keyboard.add(types.InlineKeyboardButton(
+            style,
+            callback_data=f"set_style_{style}"
+        ))
+    
+    bot.send_message(user_id, "🔄 لطفا سبک بازی مورد نظر خود را انتخاب کنید:", reply_markup=keyboard)
+
+def set_style(user_id, style):
+    users_db[str(user_id)]["style"] = style
+    save_data()
+    team_management(bot.send_message(user_id, f"✅ سبک بازی تیم به {style} تغییر یافت!"))
+
+def change_pressing(user_id):
+    keyboard = types.InlineKeyboardMarkup()
+    pressings = ["100%", "50%", "0%"]
+    
+    for pressing in pressings:
+        keyboard.add(types.InlineKeyboardButton(
+            pressing,
+            callback_data=f"set_pressing_{pressing}"
+        ))
+    
+    bot.send_message(user_id, "🏃‍♂️ لطفا میزان پرسینگ مورد نظر خود را انتخاب کنید:", reply_markup=keyboard)
+
+def set_pressing(user_id, pressing):
+    users_db[str(user_id)]["pressing"] = pressing
+    save_data()
+    team_management(bot.send_message(user_id, f"✅ میزان پرسینگ تیم به {pressing} تغییر یافت!"))
 
 def toggle_offside(user_id):
     user_data = users_db[str(user_id)]
@@ -320,6 +427,46 @@ def toggle_offside(user_id):
     save_data()
     
     team_management(bot.send_message(user_id, f"تله آفساید {'فعال' if user_data['offside'] else 'غیرفعال'} شد!"))
+
+def convert_coins(user_id):
+    user_data = users_db[str(user_id)]
+    
+    if user_data["coins"] < 100:
+        bot.send_message(user_id, "⚠️ حداقل 100 سکه برای تبدیل نیاز دارید!")
+        return
+    
+    max_convert = user_data["coins"] // 100
+    user_data["coins"] -= max_convert * 100
+    user_data["gems"] += max_convert
+    save_data()
+    
+    bot.send_message(user_id, f"✅ {max_convert * 100} سکه به {max_convert} جم تبدیل شد!")
+
+def request_receipt(user_id):
+    bot.send_message(user_id, "📤 لطفا تصویر یا متن فیش واریزی خود را ارسال کنید:")
+    bot.register_next_step_handler_by_chat_id(user_id, process_receipt)
+
+def process_receipt(message):
+    user_id = message.from_user.id
+    
+    # ارسال فیش به ادمین
+    admin_text = f"📩 فیش جدید از کاربر:\n"
+    admin_text += f"👤 کاربر: {message.from_user.first_name}\n"
+    admin_text += f"🆔 آیدی: {user_id}\n"
+    admin_text += f"🏷️ تیم: {users_db[str(user_id)]['team_name']}"
+    
+    admin_markup = types.InlineKeyboardMarkup()
+    admin_markup.row(
+        types.InlineKeyboardButton("✅ تایید", callback_data=f"approve_{user_id}"),
+        types.InlineKeyboardButton("❌ رد", callback_data=f"reject_{user_id}")
+    )
+    
+    if message.photo:
+        bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=admin_text, reply_markup=admin_markup)
+    else:
+        bot.send_message(ADMIN_ID, f"{admin_text}\n\n📝 متن فیش:\n{message.text}", reply_markup=admin_markup)
+    
+    bot.send_message(user_id, "✅ فیش واریزی شما به ادمین ارسال شد. پس از تایید، موجودی شما افزایش می‌یابد.")
 
 # --- سیستم بازی روزانه ---
 def daily_game_scheduler():
@@ -337,7 +484,7 @@ def play_daily_matches():
         player1 = participants[i]
         player2 = participants[i+1]
         
-        # شبیه‌سازی بازی بر اساس تاکتیک‌ها و ترکیب
+        # شبیه‌سازی بازی
         result = simulate_match(player1, player2)
         
         # ارسال نتایج به بازیکنان
@@ -351,24 +498,86 @@ def play_daily_matches():
     save_data()
 
 def simulate_match(player1_id, player2_id):
-    # الگوریتم پیشرفته شبیه‌سازی بازی بر اساس تاکتیک‌ها
     p1_data = users_db[player1_id]
     p2_data = users_db[player2_id]
     
-    # محاسبه امتیاز بر اساس ترکیب، تاکتیک و بازیکنان
+    # محاسبه امتیاز بر اساس عوامل مختلف
     p1_score = calculate_team_score(p1_data)
     p2_score = calculate_team_score(p2_data)
     
     # کمی رندوم برای هیجان
-    p1_score += random.randint(-10, 10)
-    p2_score += random.randint(-10, 10)
+    p1_score += random.randint(-5, 5)
+    p2_score += random.randint(-5, 5)
     
     if p1_score > p2_score:
-        return {"winner": player1_id, "loser": player2_id, "draw": False}
+        return {"winner": player1_id, "loser": player2_id, "draw": False, "score": f"{p1_score}-{p2_score}"}
     elif p1_score < p2_score:
-        return {"winner": player2_id, "loser": player1_id, "draw": False}
+        return {"winner": player2_id, "loser": player1_id, "draw": False, "score": f"{p2_score}-{p1_score}"}
     else:
-        return {"winner": None, "loser": None, "draw": True}
+        return {"winner": None, "loser": None, "draw": True, "score": f"{p1_score}-{p2_score}"}
+
+def calculate_team_score(team_data):
+    # محاسبه امتیاز تیم بر اساس عوامل مختلف
+    score = 0
+    
+    # امتیاز بازیکنان
+    for player_id in team_data["players"]:
+        score += players_db[player_id]["overall"]
+    
+    # تاثیر تاکتیک
+    if team_data["tactic"] == "هجومی":
+        score += 10
+    elif team_data["tactic"] == "دفاعی":
+        score -= 5
+    
+    # تاثیر سبک بازی
+    if team_data["style"] in ["پاسکاری", "ضربات ایستگاهی"]:
+        score += 5
+    
+    # تاثیر پرسینگ
+    if team_data["pressing"] == "100%":
+        score += 8
+    elif team_data["pressing"] == "50%":
+        score += 4
+    
+    # تاثیر تله آفساید
+    if team_data["offside"]:
+        score += 3
+    
+    return score
+
+def send_match_result(player_id, opponent_id, result):
+    player_data = users_db[player_id]
+    opponent_data = users_db[opponent_id]
+    
+    if result["winner"] == player_id:
+        player_data["wins"] += 1
+        player_data["score"] += 20
+        result_text = "✅ شما برنده شدید!"
+    elif result["draw"]:
+        player_data["draws"] += 1
+        player_data["score"] += 5
+        result_text = "🔶 مساوی!"
+    else:
+        player_data["losses"] += 1
+        player_data["score"] -= 10
+        result_text = "❌ شما باختید!"
+    
+    match_info = {
+        "opponent": opponent_data["team_name"],
+        "result": "win" if result["winner"] == player_id else "draw" if result["draw"] else "loss",
+        "score": result["score"],
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M")
+    }
+    player_data["matches"].append(match_info)
+    
+    text = "🏟️ بازی شما به پایان رسید!\n\n"
+    text += f"🆚 حریف: {opponent_data['team_name']}\n"
+    text += f"📊 نتیجه: {result['score']}\n"
+    text += f"🏆 {result_text}\n\n"
+    text += f"⭐ امتیاز جدید شما: {player_data['score']}"
+    
+    bot.send_message(int(player_id), text)
 
 # --- Webhook تنظیمات ---
 @app.route('/' + TOKEN, methods=['POST'])
