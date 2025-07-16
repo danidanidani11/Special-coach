@@ -425,6 +425,8 @@ def convert_coins(m):
 # ارسال فیش
 @bot.message_handler(func=lambda m: m.text == "📤 ارسال فیش")
 def ask_receipt(m):
+    uid = str(m.from_user.id)
+    user_states[uid] = "waiting_receipt"
     bot.send_message(m.chat.id, "🧾 فیش پرداخت را ارسال کن (عکس یا متن):", reply_markup=back_menu())
 
 @bot.message_handler(content_types=["text", "photo"])
