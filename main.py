@@ -479,27 +479,39 @@ def daily_reward(m):
 def top_players(m):
     users = load_users()
     rankings = []
-
-    for uid, u in users.items():
-        history = u.get("match_history", [])
-        total = len(history)
-        if total == 0:
-            continue  # از کاربران بدون بازی صرف نظر می‌کنیم
-            
-        wins = sum(1 for r in history if "برنده شد" in r and u.get("team", "") in r)
-        percent = int((wins / total) * 100)
-        rankings.append((u.get("team", "نامعلوم"), percent, wins, total))
-
-    # اولویت با درصد برد، سپس تعداد بردها
-    rankings.sort(key=lambda x: (-x[1], -x[2])) 
     
-    text = "🏆 برترین تیم‌ها:\n\n"
-    for i, (name, percent, wins, total) in enumerate(rankings[:10], 1):
-        text += f"{i}- {name}: {percent}% برد ({wins} از {total} بازی)\n"
-
-    if not rankings:
-        text = "❌ هنوز هیچ بازی انجام نشده."
+    for uid, user_data in users.items():
+        team_name = user_data.get("team", "نامعلوم")
+        match_history = user_data.get("match_history", [])
+        total_games = len(match_history)
         
+        if total_games == 0:
+            continue
+        
+        wins = 0
+        for result in match_history:
+            if "برنده شد" in result and team_name in result:
+                wins += 1
+        
+        win_percentage = (wins / total_games) * 100 if total_games > 0 else 0
+        rankings.append({
+            "team": team_name,
+            "percentage": win_percentage,
+            "wins": wins,
+            "total": total_games
+        })
+    
+    # مرتب‌سازی بر اساس درصد برد (نزولی) و سپس تعداد بردها
+    rankings.sort(key=lambda x: (-x["percentage"], -x["wins"]))
+    
+    text = "🏆 جدول برترین تیم‌ها:\n\n"
+    for idx, team in enumerate(rankings[:10], 1):
+        text += (f"{idx}. {team['team']} - {team['percentage']:.1f}% "
+                f"({team['wins']}/{team['total']} برد)\n")
+    
+    if not rankings:
+        text = "هنوز هیچ بازی انجام نشده است."
+    
     bot.send_message(m.chat.id, text, reply_markup=back_menu())
 
 # اجرای فل ask با webhook
