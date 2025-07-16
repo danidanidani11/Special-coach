@@ -481,17 +481,17 @@ def top_players(m):
     rankings = []
 
     for uid, u in users.items():
-        total = len(u["match_history"])
-        wins = sum(1 for r in u["match_history"] if "برنده شد" in r and u["team"] in r)
+        total = len(u.get("match_history", []))
+        wins = sum(1 for r in u.get("match_history", []) if "برنده شد" in r and u.get("team", "") in r)
         percent = int((wins / total) * 100) if total > 0 else 0
-        rankings.append((u["team"], percent))
+        rankings.append((u.get("team", "نامعلوم"), percent))
 
     rankings.sort(key=lambda x: x[1], reverse=True)
     text = "🏆 برترین تیم‌ها:\n\n"
     for i, (name, percent) in enumerate(rankings[:10], 1):
         text += f"{i}- {name}: {percent}% برد\n"
 
-    bot.send_message(m.chat.id, text or "هیچ تیمی ثبت نشده.", reply_markup=back_menu())
+    bot.send_message(m.chat.id, text or "❌ هیچ تیمی ثبت نشده.", reply_markup=back_menu())
 
 # اجرای فل ask با webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
