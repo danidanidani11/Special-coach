@@ -25,7 +25,6 @@ ALL_PLAYERS = {
     "player1": {"name": "بازیکن ضعیف 1", "overall": 40, "position": "DF", "price_coins": 20, "price_gems": 1},
     "player2": {"name": "بازیکن ضعیف 2", "overall": 42, "position": "DF", "price_coins": 25, "price_gems": 1},
     "player3": {"name": "بازیکن ضعیف 3", "overall": 43, "position": "MF", "price_coins": 25, "price_gems": 1},
-    ...
     "player25": {"name": "بازیکن ضعیف 25", "overall": 50, "position": "GK", "price_coins": 30, "price_gems": 1},
 
     "player26": {"name": "Messi", "overall": 93, "position": "FW", "price_coins": 500, "price_gems": 10},
