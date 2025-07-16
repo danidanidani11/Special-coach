@@ -429,7 +429,7 @@ def ask_receipt(m):
 
 @bot.message_handler(content_types=["text", "photo"])
 def handle_receipt(m):
-    if m.text in ["📄 گزارش بازی"]:
+    if m.text in ["📄 گزارش بازی", "🎁 پاداش روزانه", "🏆 برترین‌ها"]:
         return  # جلو ارسال اشتباهی
     if m.text == "بازگشت به منو":
         return bot.send_message(m.chat.id, "بازگشت به منوی اصلی", reply_markup=main_menu())
@@ -528,10 +528,10 @@ def top_players(m):
         if not leaderboard:
             text = "هنوز هیچ بازی انجام نشده است."
             
-        bot.send_message(m.chat.id, text)
+        bot.send_message(m.chat.id, text, reply_markup=back_menu())
     except Exception as e:
         print(f"Error in leaderboard: {str(e)}")
-        bot.send_message(m.chat.id, "⚠️ خطا در دریافت رده‌بندی")
+        bot.send_message(m.chat.id, "⚠️ خطا در دریافت رده‌بندی", reply_markup=back_menu())
 
 # اجرای فل ask با webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
