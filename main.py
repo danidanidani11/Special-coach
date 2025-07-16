@@ -463,8 +463,8 @@ def handle_receipt_admin(c):
 def daily_reward(m):
     uid = str(m.from_user.id)
     users = load_users()
-    today = datetime.datetime.now().date().isoformat()
-
+    today = datetime.datetime.now().strftime("%Y-%m-%d")  # فرمت ثابت
+    
     if users[uid].get("last_reward") == today:
         bot.send_message(m.chat.id, "❌ امروز پاداشت رو گرفتی.")
         return
@@ -481,17 +481,26 @@ def top_players(m):
     rankings = []
 
     for uid, u in users.items():
-        total = len(u.get("match_history", []))
-        wins = sum(1 for r in u.get("match_history", []) if "برنده شد" in r and u.get("team", "") in r)
-        percent = int((wins / total) * 100) if total > 0 else 0
-        rankings.append((u.get("team", "نامعلوم"), percent))
+        history = u.get("match_history", [])
+        total = len(history)
+        if total == 0:
+            continue  # از کاربران بدون بازی صرف نظر می‌کنیم
+            
+        wins = sum(1 for r in history if "برنده شد" in r and u.get("team", "") in r)
+        percent = int((wins / total) * 100)
+        rankings.append((u.get("team", "نامعلوم"), percent, wins, total))
 
-    rankings.sort(key=lambda x: x[1], reverse=True)
+    # اولویت با درصد برد، سپس تعداد بردها
+    rankings.sort(key=lambda x: (-x[1], -x[2])) 
+    
     text = "🏆 برترین تیم‌ها:\n\n"
-    for i, (name, percent) in enumerate(rankings[:10], 1):
-        text += f"{i}- {name}: {percent}% برد\n"
+    for i, (name, percent, wins, total) in enumerate(rankings[:10], 1):
+        text += f"{i}- {name}: {percent}% برد ({wins} از {total} بازی)\n"
 
-    bot.send_message(m.chat.id, text or "❌ هیچ تیمی ثبت نشده.", reply_markup=back_menu())
+    if not rankings:
+        text = "❌ هنوز هیچ بازی انجام نشده."
+        
+    bot.send_message(m.chat.id, text, reply_markup=back_menu())
 
 # اجرای فل ask با webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
