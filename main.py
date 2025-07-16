@@ -492,42 +492,50 @@ def daily_reward(m):
 # 🏆 برترین‌ها
 @bot.message_handler(func=lambda m: m.text == "🏆 برترین‌ها")
 def top_players(m):
-    users = load_users()
-    rankings = []
-    
-    for uid, user_data in users.items():
-        team_name = user_data.get("team", "نامعلوم")
-        match_history = user_data.get("match_history", [])
-        total_games = len(match_history)
+    try:
+        users = load_users()
+        leaderboard = []
         
-        if total_games == 0:
-            continue
+        for uid, data in users.items():
+            # اگر تیم نامعتبر بود
+            if "team" not in data or not data["team"]:
+                continue
+                
+            team_name = data["team"]
+            matches = data.get("match_history", [])
+            total = len(matches)
+            
+            if total == 0:
+                continue  # از تیم‌های بدون بازی صرف‌نظر می‌کنیم
+                
+            wins = sum(1 for match in matches if f"{team_name} برنده شد" in match)
+            win_rate = (wins / total) * 100
+            
+            leaderboard.append({
+                "name": team_name,
+                "rate": win_rate,
+                "wins": wins,
+                "matches": total
+            })
         
-        wins = 0
-        for result in match_history:
-            if "برنده شد" in result and team_name in result:
-                wins += 1
+        # مرتب‌سازی: اول درصد برد، سپس تعداد بردها
+        leaderboard.sort(key=lambda x: (-x["rate"], -x["wins"]))
         
-        win_percentage = (wins / total_games) * 100 if total_games > 0 else 0
-        rankings.append({
-            "team": team_name,
-            "percentage": win_percentage,
-            "wins": wins,
-            "total": total_games
-        })
-    
-    # مرتب‌سازی بر اساس درصد برد (نزولی) و سپس تعداد بردها
-    rankings.sort(key=lambda x: (-x["percentage"], -x["wins"]))
-    
-    text = "🏆 جدول برترین تیم‌ها:\n\n"
-    for idx, team in enumerate(rankings[:10], 1):
-        text += (f"{idx}. {team['team']} - {team['percentage']:.1f}% "
-                f"({team['wins']}/{team['total']} برد)\n")
-    
-    if not rankings:
-        text = "هنوز هیچ بازی انجام نشده است."
-    
-    bot.send_message(m.chat.id, text, reply_markup=back_menu())
+        # ساخت متن خروجی
+        text = "🏆 رده‌بندی برترین تیم‌ها:\n\n"
+        for rank, team in enumerate(leaderboard[:10], 1):
+            text += (f"{rank}. {team['name']}\n"
+                    f"📊 {team['rate']:.1f}% برد - "
+                    f"✅ {team['wins']} برد از {team['matches']} بازی\n\n")
+        
+        if not leaderboard:
+            text = "هنوز هیچ بازی انجام نشده است."
+            
+        bot.send_message(m.chat.id, text, reply_markup=back_menu())
+        
+    except Exception as e:
+        print(f"Error in leaderboard: {str(e)}")
+        bot.send_message(m.chat.id, "⚠️ خطا در دریافت رده‌بندی")
 
 # اجرای فل ask با webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
