@@ -425,17 +425,14 @@ def convert_coins(m):
 # ارسال فیش
 @bot.message_handler(func=lambda m: m.text == "📤 ارسال فیش")
 def ask_receipt(m):
-    uid = str(m.from_user.id)
-    user_states[uid] = "waiting_receipt"
     bot.send_message(m.chat.id, "🧾 فیش پرداخت را ارسال کن (عکس یا متن):", reply_markup=back_menu())
 
 @bot.message_handler(content_types=["text", "photo"])
 def handle_receipt(m):
-    uid = str(m.from_user.id)
-    if user_states.get(uid) != "awaiting_receipt":
-        return
-
-    user_states.pop(uid, None)
+    if m.text in ["📄 گزارش بازی", "🎁 پاداش روزانه", "🏆 برترین‌ها"]:
+        return  # جلو ارسال اشتباهی
+    if m.text == "بازگشت به منو":
+        return bot.send_message(m.chat.id, "بازگشت به منوی اصلی", reply_markup=main_menu())
 
     if m.content_type == "text":
         bot.send_message(ADMIN_ID, f"📤 فیش متنی جدید از {m.from_user.first_name}:\n{m.text}")
