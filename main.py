@@ -461,18 +461,33 @@ def handle_receipt_admin(c):
 # 🎁 پاداش روزانه
 @bot.message_handler(func=lambda m: m.text == "🎁 پاداش روزانه")
 def daily_reward(m):
-    uid = str(m.from_user.id)
-    users = load_users()
-    today = datetime.datetime.now().strftime("%Y-%m-%d")  # فرمت ثابت
-    
-    if users[uid].get("last_reward") == today:
-        bot.send_message(m.chat.id, "❌ امروز پاداشت رو گرفتی.")
-        return
-
-    users[uid]["last_reward"] = today
-    users[uid]["gems"] += 2
-    save_users(users)
-    bot.send_message(m.chat.id, "🎉 2 جم به عنوان پاداش روزانه دریافت کردی!", reply_markup=back_menu())
+    try:
+        uid = str(m.from_user.id)
+        users = load_users()
+        
+        # اگر کاربر وجود نداشت
+        if uid not in users:
+            users[uid] = {"last_reward": "", "gems": 0}  # ساختار پایه
+        
+        today = datetime.datetime.now().strftime("%Y-%m-%d")
+        last_reward = users[uid].get("last_reward", "")
+        
+        # دیباگ: نمایش مقادیر فعلی
+        print(f"User: {uid}, Today: {today}, Last Reward: {last_reward}")
+        
+        if last_reward == today:
+            bot.send_message(m.chat.id, "⏳ امروز پاداش خود را دریافت کرده‌اید!")
+            return
+        
+        # به روزرسانی پاداش
+        users[uid]["gems"] = users[uid].get("gems", 0) + 2
+        users[uid]["last_reward"] = today
+        save_users(users)
+        
+        bot.send_message(m.chat.id, "🎉 2 جم دریافت کردید!\n💎 موجودی جم: {}".format(users[uid]["gems"]))
+    except Exception as e:
+        print(f"Error in daily reward: {str(e)}")
+        bot.send_message(m.chat.id, "⚠️ خطایی رخ داد. لطفاً بعداً تلاش کنید.")
 
 # 🏆 برترین‌ها
 @bot.message_handler(func=lambda m: m.text == "🏆 برترین‌ها")
