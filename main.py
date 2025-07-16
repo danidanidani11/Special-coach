@@ -55,8 +55,7 @@ def main_menu():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("📋 ترکیب و تاکتیک", "🏪 فروشگاه بازیکن")
     markup.row("🎮 بازی شبانه", "📄 گزارش بازی")
-    markup.row("👛 کیف پول", "🎁 پاداش روزانه")
-    markup.row("🏆 برترین‌ها")
+    markup.row("👛 کیف پول")
     return markup
 
 # منوی بازگشت
@@ -142,8 +141,7 @@ def contact_handler(message):
         "score": 0,
         "coins": 100,
         "gems": 2,
-        "match_history": [],
-        "last_reward": ""
+        "match_history": []
     }
 
     save_users(users)
@@ -429,7 +427,7 @@ def ask_receipt(m):
 
 @bot.message_handler(content_types=["text", "photo"])
 def handle_receipt(m):
-    if m.text in ["📄 گزارش بازی", "🎁 پاداش روزانه", "🏆 برترین‌ها"]:
+    if m.text in ["📄 گزارش بازی"]:
         return  # جلو ارسال اشتباهی
     if m.text == "بازگشت به منو":
         return bot.send_message(m.chat.id, "بازگشت به منوی اصلی", reply_markup=main_menu())
@@ -457,85 +455,6 @@ def handle_receipt_admin(c):
     else:
         bot.send_message(int(uid), "❌ فیش رد شد.")
         bot.edit_message_text("❌ رد شد", c.message.chat.id, c.message.message_id)
-
-# 🎁 پاداش روزانه
-@bot.message_handler(func=lambda m: m.text == "🎁 پاداش روزانه")
-def daily_reward(m):
-    try:
-        uid = str(m.from_user.id)
-        users = load_users()
-        
-        # اگر کاربر وجود نداشت
-        if uid not in users:
-            users[uid] = {"last_reward": "", "gems": 0}  # ساختار پایه
-        
-        today = datetime.datetime.now().strftime("%Y-%m-%d")
-        last_reward = users[uid].get("last_reward", "")
-        
-        # دیباگ: نمایش مقادیر فعلی
-        print(f"User: {uid}, Today: {today}, Last Reward: {last_reward}")
-        
-        if last_reward == today:
-            bot.send_message(m.chat.id, "⏳ امروز پاداش خود را دریافت کرده‌اید!")
-            return
-        
-        # به روزرسانی پاداش
-        users[uid]["gems"] = users[uid].get("gems", 0) + 2
-        users[uid]["last_reward"] = today
-        save_users(users)
-        
-        bot.send_message(m.chat.id, "🎉 2 جم دریافت کردید!\n💎 موجودی جم: {}".format(users[uid]["gems"]))
-    except Exception as e:
-        print(f"Error in daily reward: {str(e)}")
-        bot.send_message(m.chat.id, "⚠️ خطایی رخ داد. لطفاً بعداً تلاش کنید.")
-
-# 🏆 برترین‌ها
-@bot.message_handler(func=lambda m: m.text == "🏆 برترین‌ها")
-def top_players(m):
-    try:
-        users = load_users()
-        leaderboard = []
-        
-        for uid, data in users.items():
-            # اگر تیم نامعتبر بود
-            if "team" not in data or not data["team"]:
-                continue
-                
-            team_name = data["team"]
-            matches = data.get("match_history", [])
-            total = len(matches)
-            
-            if total == 0:
-                continue  # از تیم‌های بدون بازی صرف‌نظر می‌کنیم
-                
-            wins = sum(1 for match in matches if f"{team_name} برنده شد" in match)
-            win_rate = (wins / total) * 100
-            
-            leaderboard.append({
-                "name": team_name,
-                "rate": win_rate,
-                "wins": wins,
-                "matches": total
-            })
-        
-        # مرتب‌سازی: اول درصد برد، سپس تعداد بردها
-        leaderboard.sort(key=lambda x: (-x["rate"], -x["wins"]))
-        
-        # ساخت متن خروجی
-        text = "🏆 رده‌بندی برترین تیم‌ها:\n\n"
-        for rank, team in enumerate(leaderboard[:10], 1):
-            text += (f"{rank}. {team['name']}\n"
-                    f"📊 {team['rate']:.1f}% برد - "
-                    f"✅ {team['wins']} برد از {team['matches']} بازی\n\n")
-        
-        if not leaderboard:
-            text = "هنوز هیچ بازی انجام نشده است."
-            
-        bot.send_message(m.chat.id, text, reply_markup=back_menu())
-        
-    except Exception as e:
-        print(f"Error in leaderboard: {str(e)}")
-        bot.send_message(m.chat.id, "⚠️ خطا در دریافت رده‌بندی")
 
 # اجرای فل ask با webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
