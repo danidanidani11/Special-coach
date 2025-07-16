@@ -466,7 +466,8 @@ def daily_reward(m):
     today = datetime.datetime.now().date().isoformat()
 
     if users[uid].get("last_reward") == today:
-        return bot.send_message(m.chat.id, "❌ امروز پاداشتو گرفتی.")
+        bot.send_message(m.chat.id, "❌ امروز پاداشت رو گرفتی.")
+        return
 
     users[uid]["last_reward"] = today
     users[uid]["gems"] += 2
