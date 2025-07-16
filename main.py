@@ -51,6 +51,9 @@ def load_data():
             # بازیکنان متوسط (3-5 جم)
             "p6": {"name": "سردار آزمون", "overall": 75, "price_gems": 3, "price_coins": 300, "position": "FW"},
             "p7": {"name": "علیرضا جهانبخش", "overall": 74, "price_gems": 3, "price_coins": 300, "position": "MF"},
+            # بازیکنان قوی (8-10 جم)
+            "p8": {"name": "لیونل مسی", "overall": 93, "price_gems": 10, "price_coins": 1000, "position": "FW"},
+            "p9": {"name": "کریستیانو رونالدو", "overall": 92, "price_gems": 10, "price_coins": 1000, "position": "FW"},
             # ... سایر بازیکنان
         }
     
@@ -74,7 +77,7 @@ def check_channel_membership(user_id):
         return False
 
 # --- ثبت نام سه مرحله‌ای ---
-@bot.message_handler(commands=['start', 'شروع'])
+@bot.message_handler(commands=['start'])
 def start(message):
     user_id = message.from_user.id
     
@@ -145,14 +148,15 @@ def process_phone_number(message):
 # --- منوی اصلی ---
 def main_menu(user_id):
     if str(user_id) not in users_db:
-        start(bot.send_message(user_id, "لطفا ابتدا ثبت‌نام کنید!"))
         return
     
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.row("/start", "⚽ ترکیب و تاکتیک", "🛒 فروشگاه بازیکن")
-    keyboard.row("🎮 بازی روزانه", "📊 گزارش بازی")
-    keyboard.row("👛 کیف پول", "🎁 پاداش روزانه")
-    keyboard.row("🏆 برترین‌ها")
+    keyboard.row(types.KeyboardButton("⚽ ترکیب و تاکتیک"), types.KeyboardButton("🛒 فروشگاه بازیکن"))
+    keyboard.row(types.KeyboardButton("🎮 بازی روزانه"), types.KeyboardButton("📊 گزارش بازی"))
+    keyboard.row(types.KeyboardButton("👛 کیف پول"), types.KeyboardButton("🎁 پاداش روزانه"))
+    keyboard.row(types.KeyboardButton("🏆 برترین‌ها"))
+    keyboard.row(types.KeyboardButton("≡ Menu", web_app=types.WebAppInfo(url=f"https://t.me/{bot.get_me().username}?start=menu")))
+    
     bot.send_message(user_id, "منوی اصلی:", reply_markup=keyboard)
 
 # --- فروشگاه بازیکن ---
@@ -275,6 +279,40 @@ def top_players(message):
     
     bot.send_message(user_id, text)
 
+# --- بازی روزانه ---
+@bot.message_handler(func=lambda m: m.text == "🎮 بازی روزانه" and str(m.from_user.id) in users_db)
+def daily_game(message):
+    user_id = message.from_user.id
+    users_db[str(user_id)]["in_game"] = True
+    save_data()
+    
+    now = datetime.now().strftime("%H:%M")
+    if now >= GAME_TIME:
+        bot.send_message(user_id, "⏳ بازی امروز به زودی شروع می‌شود...")
+    else:
+        bot.send_message(user_id, f"✅ نام شما در لیست بازی‌های امروز ثبت شد. بازی‌ها ساعت {GAME_TIME} شروع می‌شوند.")
+
+# --- گزارش بازی ---
+@bot.message_handler(func=lambda m: m.text == "📊 گزارش بازی" and str(m.from_user.id) in users_db)
+def match_report(message):
+    user_id = message.from_user.id
+    user_data = users_db[str(user_id)]
+    
+    if not user_data["matches"]:
+        bot.send_message(user_id, "هنوز هیچ بازی انجام نداده‌اید!")
+        return
+    
+    text = "📊 گزارش بازی‌های شما:\n\n"
+    for i, match in enumerate(user_data["matches"][-5:], 1):  # نمایش 5 بازی آخر
+        result = "✅ برنده" if match["result"] == "win" else "🔶 مساوی" if match["result"] == "draw" else "❌ بازنده"
+        text += f"🎮 بازی {i}:\n"
+        text += f"🆚 حریف: {match['opponent']}\n"
+        text += f"🏆 نتیجه: {result}\n"
+        text += f"📊 نتیجه نهایی: {match['score']}\n"
+        text += f"⏰ تاریخ: {match['date']}\n\n"
+    
+    bot.send_message(user_id, text)
+
 # --- مدیریت callback‌ها ---
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
@@ -327,6 +365,12 @@ def callback_handler(call):
     
     elif data.startswith("set_pressing_"):
         set_pressing(user_id, data[13:])
+    
+    elif data.startswith("approve_"):
+        approve_transaction(data[8:])
+    
+    elif data.startswith("reject_"):
+        reject_transaction(data[7:])
 
 # --- توابع کمکی ---
 def buy_player(user_id, player_id):
@@ -467,6 +511,16 @@ def process_receipt(message):
         bot.send_message(ADMIN_ID, f"{admin_text}\n\n📝 متن فیش:\n{message.text}", reply_markup=admin_markup)
     
     bot.send_message(user_id, "✅ فیش واریزی شما به ادمین ارسال شد. پس از تایید، موجودی شما افزایش می‌یابد.")
+
+def approve_transaction(user_id):
+    users_db[user_id]["coins"] += 100
+    save_data()
+    bot.send_message(user_id, "✅ فیش واریزی شما تایید شد! 100 سکه به حساب شما اضافه گردید.")
+    bot.send_message(ADMIN_ID, f"تراکنش کاربر {user_id} تایید شد.")
+
+def reject_transaction(user_id):
+    bot.send_message(user_id, "❌ فیش واریزی شما رد شد. لطفا با پشتیبانی تماس بگیرید.")
+    bot.send_message(ADMIN_ID, f"تراکنش کاربر {user_id} رد شد.")
 
 # --- سیستم بازی روزانه ---
 def daily_game_scheduler():
