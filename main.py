@@ -190,7 +190,7 @@ def daily_reward_handler(m):
         if now.date() == last_date:
             return bot.send_message(m.chat.id, "❌ امروز قبلاً پاداش دریافت کرده‌اید. فردا دوباره امتحان کنید.", reply_markup=back_menu())
     
-    users[uid]["gems"] += 2
+    users[uid]["coins"] += 50
     users[uid]["last_daily_reward"] = now.strftime("%Y-%m-%d")
     save_users(users)
     
