@@ -27,12 +27,12 @@ ALL_PLAYERS = {
     "player3": {"name": "بازیکن ضعیف 3", "overall": 43, "position": "MF", "price_coins": 25, "price_gems": 1},
     "player25": {"name": "بازیکن ضعیف 25", "overall": 50, "position": "GK", "price_coins": 30, "price_gems": 1},
 
-    "player26": {"name": "Messi", "overall": 93, "position": "FW", "price_coins": 500, "price_gems": 10},
-    "player27": {"name": "Ronaldo", "overall": 91, "position": "FW", "price_coins": 480, "price_gems": 10},
-    "player28": {"name": "Modric", "overall": 90, "position": "MF", "price_coins": 450, "price_gems": 9},
-    "player50": {"name": "Ter Stegen", "overall": 88, "position": "GK", "price_coins": 400, "price_gems": 8}
-}
-
+    "player26": {"name": "Messi", "overall": 98, "position": "FW", "price_coins": 700, "price_gems": 12},
+    "player27": {"name": "Ronaldo", "overall": 97, "position": "FW", "price_coins": 650, "price_gems": 11},
+    "player28": {"name": "Modric", "overall": 91, "position": "MF", "price_coins": 450, "price_gems": 7},
+    "player50": {"name": "Ter Stegen", "overall": 87, "position": "GK", "price_coins": 350, "price_gems": 5},
+    "player29": {"name": "Kdb", "overall": 93, "position": "MF", "price_coins": 500, "price_gems": 8},
+    "player30": {"name": "Neymar", "overall": 93, "position": "FW", "price_coins": 525, "price_gems": 9}
 # سیستم رویدادهای بازی
 MATCH_EVENTS = {
     "goal": [
