@@ -424,7 +424,7 @@ def convert_coins(m):
         bot.send_message(m.chat.id, "❌ سکه کافی نداری!", reply_markup=back_menu())
 
 
-chat_id = str(message.chat.id)
+chat_id = str(call.message.chat.id)
 user_states[chat_id] = "awaiting_receipt"
 
 # ارسال فیش
