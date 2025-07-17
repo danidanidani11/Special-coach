@@ -423,6 +423,8 @@ def convert_coins(m):
     else:
         bot.send_message(m.chat.id, "❌ سکه کافی نداری!", reply_markup=back_menu())
 
+user_states[chat_id] = "awaiting_receipt"
+
 # ارسال فیش
 @bot.message_handler(func=lambda m: m.text == "📤 ارسال فیش")
 def ask_receipt(m):
