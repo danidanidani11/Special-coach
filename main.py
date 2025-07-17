@@ -351,7 +351,7 @@ def show_store(m):
             continue
 
         price = f"{pl['price_gems']} جم / {pl['price_coins']} سکه"
-        btn = types.InlineKeyboardButton(f"{pl['name']} ({pl['position']} ({pl['overall']}) | {price}", callback_data=f"buy_{pid}")
+        btn = types.InlineKeyboardButton(f"{pl['name']} ({pl['position']} (f"{pl['overall']}) | {price}", callback_data=f"buy_{pid}")
         markup.add(btn)
 
     if len(markup.keyboard) == 0:
