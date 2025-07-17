@@ -201,7 +201,7 @@ def simulate_live_match(user1, user2, users):
 def run_nightly_game():
     while True:
         now = datetime.datetime.now()
-        if now.hour == 22 and now.minute == 0:
+        if now.hour == 9 and now.minute == 30:
             users = load_users()
             plist = list(participants)
             random.shuffle(plist)
