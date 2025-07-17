@@ -2,6 +2,7 @@ import telebot
 from telebot import types
 from flask import Flask, request
 import os, time, json, threading, random, datetime
+user_states = {}
 
 TOKEN = "7721577419:AAGF6eX2kt5sD4FADDNNIuY0WJE7wBrnhFc"
 WEBHOOK_URL = "https://special-coach.onrender.com/" + TOKEN
