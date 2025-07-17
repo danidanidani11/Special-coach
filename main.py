@@ -504,7 +504,7 @@ def match_report(m):
         f"📊 خلاصه رویدادها:\n"
     )
     
-    for i, event in enumerate(last_match.get("events", [])[:5]:  # نمایش 5 رویداد اول
+    for i, event in enumerate(last_match.get("events", [])[:5]):  # نمایش 5 رویداد اول
         report += f"{i+1}. {event}\n"
     
     bot.send_message(m.chat.id, report, reply_markup=back_menu())
