@@ -105,47 +105,75 @@ def simulate_live_match(user1, user2, users):
     team1 = users[user1]
     team2 = users[user2]
     
-    score = [0, 0]  # [تیم 1, تیم 2]
-    events = []
-    
-    # ... (کدهای قبلی شبیه‌سازی بازی) ...
+    # محاسبه قدرت تیم‌ها با جزئیات دقیق‌تر
+    def calculate_power(team):
+        base = sum(ALL_PLAYERS[p]["overall"] for p in team["players"] if p in ALL_PLAYERS) / 11
+        tactic_bonus = 0
+        
+        # تأثیر تاکتیک‌ها (با ضرایب قوی‌تر)
+        if team["tactic"].get("mode") == "هجومی": tactic_bonus += 15
+        elif team["tactic"].get("mode") == "دفاعی": tactic_bonus -= 10
+        
+        if team["tactic"].get("press") == "پرس ۱۰۰ درصد": tactic_bonus += 8
+        
+        return max(30, min(100, base + tactic_bonus + random.randint(-5, 5)))
 
-    # ثبت نتیجه نهایی با نوع دقیق
-    if score[0] > score[1]:
+    power1 = calculate_power(team1)
+    power2 = calculate_power(team2)
+    
+    # محاسبه گل‌ها با فرمول واقع‌گرایانه
+    diff = abs(power1 - power2)
+    avg_goals = 2 + (diff / 20)  # میانگین گل بر اساس اختلاف قدرت
+    
+    goals1 = int(avg_goals * (power1 / (power1 + power2)) + random.randint(-1, 1)
+    goals2 = int(avg_goals * (power2 / (power1 + power2))) + random.randint(-1, 1)
+    
+    # جلوگیری از نتایج منفی
+    goals1 = max(0, min(5, goals1))
+    goals2 = max(0, min(5, goals2))
+    
+    # ثبت دقیق نتیجه
+    result_details = {
+        "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "score": f"{goals1}-{goals2}",
+        "opponent": team2["team"] if user1 == user1 else team1["team"],
+        "goals_for": goals1 if user1 == user1 else goals2,
+        "goals_against": goals2 if user1 == user1 else goals1,
+        "power": f"{int(power1)}-{int(power2)}"  # قدرت تیم‌ها برای دیباگ
+    }
+    
+    if goals1 > goals2:
         team1["score"] += 3
-        result_type = "win"
-        result_text = f"🏆 {team1['team']} {score[0]}-{score[1]} برنده شد!"
-    elif score[0] < score[1]:
+        result_details["result"] = "win"
+        result_details["result_text"] = f"🏆 {team1['team']} {goals1}-{goals2} برنده شد!"
+    elif goals1 < goals2:
         team2["score"] += 3
-        result_type = "win"
-        result_text = f"🏆 {team2['team']} {score[1]}-{score[0]} برنده شد!"
+        result_details["result"] = "win"
+        result_details["result_text"] = f"🏆 {team2['team']} {goals2}-{goals1} برنده شد!"
     else:
         team1["score"] += 1
         team2["score"] += 1
-        result_type = "draw"
-        result_text = f"🤝 بازی مساوی شد! نتیجه {score[0]}-{score[1]}"
-
-    # ذخیره تاریخچه با نوع نتیجه
-    match_details = {
-        "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "result": result_text,
-        "result_type": result_type,  # win/lose/draw
-        "score": f"{score[0]}-{score[1]}",
-        "opponent": team2['team'],
-        "events": events,
-        "goals_for": score[0] if user1 == user1 else score[1],
-        "goals_against": score[1] if user1 == user1 else score[0]
-    }
+        result_details["result"] = "draw"
+        result_details["result_text"] = f"🤝 مساوی {goals1}-{goals2}"
     
-    users[user1]["match_history"].append(match_details)
+    # ذخیره برای هر دو تیم
+    team1["match_history"].append(result_details)
     
-    # ذخیره معکوس برای تیم مقابل
-    opp_match_details = match_details.copy()
-    opp_match_details["opponent"] = team1['team']
-    opp_match_details["goals_for"] = score[1]
-    opp_match_details["goals_against"] = score[0]
-    opp_match_details["result_type"] = "lose" if result_type == "win" else "win" if result_type == "lose" else "draw"
-    users[user2]["match_history"].append(opp_match_details)
+    opponent_details = result_details.copy()
+    opponent_details.update({
+        "opponent": team1["team"],
+        "goals_for": goals2,
+        "goals_against": goals1,
+        "result": "lose" if goals1 > goals2 else "win" if goals1 < goals2 else "draw"
+    })
+    team2["match_history"].append(opponent_details)
+    
+    # ارسال نتایج به کاربران
+    try:
+        bot.send_message(user1, result_details["result_text"])
+        bot.send_message(user2, opponent_details["result_text"])
+    except:
+        pass
     
     def get_random_player(team, position=None):
         players = [pid for pid in team["players"] if pid in ALL_PLAYERS and (not position or ALL_PLAYERS[pid]["position"] == position)]
