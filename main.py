@@ -585,29 +585,22 @@ def join_night_game(m):
 def match_report(m):
     uid = str(m.from_user.id)
     users = load_users()
-    history = users[uid].get("match_history", [])
     
-    if not history:
-        return bot.send_message(m.chat.id, "❌ هنوز هیچ بازی ثبت نشده.")
+    if uid not in users or not users[uid]["match_history"]:
+        return bot.send_message(m.chat.id, "❌ هیچ بازی انجام نداده‌اید.")
     
-    text = "📋 تاریخچه کامل بازی‌های شما:\n\n"
-    for i, match in enumerate(reversed(history), 1):  # جدیدترین بازی اول
+    text = f"📊 گزارش کامل بازی‌های {users[uid]['team']}:\n\n"
+    
+    for match in reversed(users[uid]["match_history"]):
         text += (
-            f"🕒 {match['date']}\n"
-            f"⚽ {match['result']}\n"
-            f"👥 حریف: {match['opponent']}\n"
-            f"📊 نتیجه: {match['score']}\n"
+            f"📅 {match['date']}\n"
+            f"🆚 مقابل: {match['opponent']}\n"
+            f"🔢 نتیجه: {match['score']}\n"
+            f"🏷️ وضعیت: {'برد' if match['result'] == 'win' else 'باخت' if match['result'] == 'lose' else 'مساوی'}\n"
+            f"⚡ قدرت تیم‌ها: {match.get('power', '?')}\n"
+            "――――――――――――――\n"
         )
         
-        # نمایش 3 رویداد برتر اگر وجود داشته باشد
-        if match.get("events"):
-            text += "🎯 مهمترین رویدادها:\n"
-            for j, event in enumerate(match["events"][:3], 1):
-                text += f"{j}. {event}\n"
-        
-        text += "\n"
-        
-        # اگر متن خیلی طولانی شد، ارسال و ادامه
         if len(text) > 3000:
             bot.send_message(m.chat.id, text)
             text = ""
