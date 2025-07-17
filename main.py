@@ -680,17 +680,22 @@ def match_report(m):
     if uid not in users or not users[uid]["match_history"]:
         return bot.send_message(m.chat.id, "❌ هیچ بازی انجام نداده‌اید.")
     
-    text = f"📊 گزارش کامل بازی‌های {users[uid]['team']}:\n\n"
+    text = f"📋 تاریخچه بازی‌های {users[uid]['team']}:\n\n"
     
     for match in reversed(users[uid]["match_history"]):
         text += (
             f"📅 {match['date']}\n"
             f"🆚 مقابل: {match['opponent']}\n"
-            f"🔢 نتیجه: {match['score']}\n"
+            f"🔢 نتیجه نهایی: {match['score']}\n"
             f"🏷️ وضعیت: {'برد' if match['result'] == 'win' else 'باخت' if match['result'] == 'lose' else 'مساوی'}\n"
-            f"⚡ قدرت تیم‌ها: {match.get('power', '?')}\n"
-            "――――――――――――――\n"
+            f"⚡ رویدادهای کلیدی:\n"
         )
+        
+        # نمایش 3 رویداد برجسته
+        for i, event in enumerate(match.get("events", [])[:3], 1):
+            text += f"{i}. {event}\n"
+        
+        text += "――――――――――――――\n"
         
         if len(text) > 3000:
             bot.send_message(m.chat.id, text)
