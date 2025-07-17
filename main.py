@@ -194,7 +194,7 @@ def daily_reward_handler(m):
     users[uid]["last_daily_reward"] = now.strftime("%Y-%m-%d")
     save_users(users)
     
-    bot.send_message(m.chat.id, "🎉 پاداش روزانه شما دریافت شد! 2 جم به حساب شما اضافه شد.", reply_markup=back_menu())
+    bot.send_message(m.chat.id, "🎉 پاداش روزانه شما دریافت شد! 50 سکه به حساب شما اضافه شد.", reply_markup=back_menu())
 
 # 🏪 فروشگاه بازیکن
 @bot.message_handler(func=lambda m: m.text == "🏪 فروشگاه بازیکن")
