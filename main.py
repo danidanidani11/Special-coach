@@ -304,16 +304,41 @@ def show_top_players(m):
     
     sorted_users = sorted(users.items(), key=lambda x: x[1]["score"], reverse=True)
     
-    text = "🏆 جدول برترین‌ها:\n\n"
+    # ابتدا لیست برترین‌ها را نمایش می‌دهیم
+    leaderboard = "🏆 جدول برترین‌ها:\n\n"
     for i, (uid, user) in enumerate(sorted_users[:10], 1):
         wins = sum(1 for h in user["match_history"] if "برنده شد" in h.get("result", ""))
         losses = sum(1 for h in user["match_history"] if "باخت" in h.get("result", ""))
         draws = sum(1 for h in user["match_history"] if "مساوی" in h.get("result", ""))
         
-        text += f"{i}. {user['team']} - امتیاز: {user['score']}\n"
-        text += f"   🏆 برد: {wins} | 🏳️ باخت: {losses} | 🤝 تساوی: {draws}\n\n"
+        leaderboard += (
+            f"{i}. {user['team']} - امتیاز: {user['score']}\n"
+            f"   🏆 برد: {wins} | 🏳️ باخت: {losses} | 🤝 تساوی: {draws}\n\n"
+        )
     
-    bot.send_message(m.chat.id, text, reply_markup=back_menu())
+    bot.send_message(m.chat.id, leaderboard, reply_markup=back_menu())
+    
+    # سپس برای هر کاربر، تمام بازی‌ها را در پیام جداگانه نمایش می‌دهیم
+    for i, (uid, user) in enumerate(sorted_users[:10], 1):
+        match_history = f"📋 تاریخچه کامل بازی‌های {user['team']}:\n\n"
+        
+        if not user["match_history"]:
+            match_history += "❌ هنوز هیچ بازی انجام نداده است.\n"
+        else:
+            for j, match in enumerate(user["match_history"], 1):
+                match_history += (
+                    f"{j}. {match['date']}\n"
+                    f"   {match['result']}\n"
+                    f"   حریف: {match['opponent']}\n\n"
+                )
+        
+        # اگر تاریخچه بازی‌ها خیلی طولانی شد، آن را تقسیم می‌کنیم
+        if len(match_history) > 4000:
+            parts = [match_history[i:i+4000] for i in range(0, len(match_history), 4000)]
+            for part in parts:
+                bot.send_message(m.chat.id, part)
+        else:
+            bot.send_message(m.chat.id, match_history)
 
 @bot.message_handler(func=lambda m: m.text == "🎁 پاداش روزانه")
 def daily_reward_handler(m):
