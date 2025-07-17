@@ -465,6 +465,8 @@ def handle_receipt_admin(c):
         bot.send_message(int(uid), "❌ فیش رد شد.")
         bot.edit_message_text("❌ رد شد", c.message.chat.id, c.message.message_id)
 
+user_states[chat_id] = None
+
 # 🎁 پاداش روزانه
 @bot.message_handler(func=lambda m: m.text == "🎁 پاداش روزانه")
 def daily_reward(m):
