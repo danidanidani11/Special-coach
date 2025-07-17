@@ -55,7 +55,7 @@ def main_menu():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("📋 ترکیب و تاکتیک", "🏪 فروشگاه بازیکن")
     markup.row("🎮 بازی شبانه", "📄 گزارش بازی")
-    markup.row("👛 کیف پول")
+    markup.row("👛 کیف پول", "برترین ها🏆", "پاداش روزانه🎁")
     return markup
 
 # منوی بازگشت
@@ -427,7 +427,7 @@ def ask_receipt(m):
 
 @bot.message_handler(content_types=["text", "photo"])
 def handle_receipt(m):
-    if m.text in ["📄 گزارش بازی"]:
+    if m.text in ["📄 گزارش بازی", "برترین ها🏆", "پاداش روزانه🎁"]:
         return  # جلو ارسال اشتباهی
     if m.text == "بازگشت به منو":
         return bot.send_message(m.chat.id, "بازگشت به منوی اصلی", reply_markup=main_menu())
@@ -455,6 +455,34 @@ def handle_receipt_admin(c):
     else:
         bot.send_message(int(uid), "❌ فیش رد شد.")
         bot.edit_message_text("❌ رد شد", c.message.chat.id, c.message.message_id)
+
+# برترین ها
+@bot.message_handler(func=lambda m: m.text == "برترین ها🏆")
+def top_players(m):
+    users = load_users()
+    sorted_users = sorted(users.items(), key=lambda x: (x[1]["score"], len(x[1]["match_history"])), reverse=True)
+    top_list = sorted_users[:10]
+
+    text = "🏆 برترین های بازی:\n\n"
+    for idx, (uid, user) in enumerate(top_list, start=1):
+        text += f"{idx}. {user['team']} - امتیاز: {user['score']} - برد: {len(user['match_history'])}\n"
+
+    bot.send_message(m.chat.id, text if text else "❌ هیچ کاربری ثبت نشده است.", reply_markup=back_menu())
+
+# پاداش روزانه
+@bot.message_handler(func=lambda m: m.text == "پاداش روزانه🎁")
+def daily_reward(m):
+    uid = str(m.from_user.id)
+    users = load_users()
+
+    # بررسی اینکه آیا کاربر قبلاً پاداش روزانه را دریافت کرده است
+    if "last_reward_date" not in users[uid] or users[uid]["last_reward_date"] < datetime.datetime.now().date():
+        users[uid]["gems"] += 2
+        users[uid]["last_reward_date"] = datetime.datetime.now().date()
+        save_users(users)
+        bot.send_message(m.chat.id, "🎁 پاداش روزانه شما با موفقیت دریافت شد! ۲ جم به حسابتان اضافه شد.", reply_markup=back_menu())
+    else:
+        bot.send_message(m.chat.id, "❌ شما امروز قبلاً پاداش روزانه خود را دریافت کرده‌اید.", reply_markup=back_menu())
 
 # اجرای فل ask با webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
