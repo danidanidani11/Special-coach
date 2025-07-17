@@ -363,7 +363,7 @@ def save_match_history(team1, team2, result):
 def run_nightly_game():
     while True:
         now = datetime.datetime.now()
-        if now.hour == 15 and now.minute == 50:
+        if now.hour == 16 and now.minute == 23:
             users = load_users()
             plist = list(participants)
             random.shuffle(plist)
