@@ -125,7 +125,7 @@ def simulate_live_match(user1, user2, users):
     diff = abs(power1 - power2)
     avg_goals = 2 + (diff / 20)  # میانگین گل بر اساس اختلاف قدرت
     
-    goals1 = int(avg_goals * (power1 / (power1 + power2)) + random.randint(-1, 1)
+    goals1 = int(avg_goals * (power1 / (power1 + power2))) + random.randint(-1, 1)
     goals2 = int(avg_goals * (power2 / (power1 + power2))) + random.randint(-1, 1)
     
     # جلوگیری از نتایج منفی
