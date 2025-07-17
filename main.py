@@ -105,6 +105,97 @@ def simulate_live_match(user1, user2, users):
     team1 = users[user1]
     team2 = users[user2]
     
+    # ارسال پیام شروع بازی
+    start_message = f"⏰ بازی بین {team1['team']} و {team2['team']} آغاز شد!"
+    send_to_both(user1, user2, start_message)
+    time.sleep(1)
+
+    # محاسبه قدرت تیم‌ها
+    power1 = calculate_power(team1)
+    power2 = calculate_power(team2)
+    
+    # شبیه‌سازی بازی دقیقه به دقیقه
+    score = [0, 0]  # [تیم1, تیم2]
+    events = []
+    
+    for minute in range(1, 6):  # 5 دقیقه بازی
+        minute_report = f"⏱️ دقیقه {minute}:"
+        send_to_both(user1, user2, minute_report)
+        time.sleep(1)
+        
+        # تولید رویدادهای بازی
+        for _ in range(random.randint(2, 4)):
+            event = generate_match_event(team1, team2, score, power1, power2)
+            events.append(event)
+            send_to_both(user1, user2, event)
+            time.sleep(1)
+            
+            # به‌روزرسانی نتیجه در صورت گل
+            if "گلللللل" in event or "گووووول" in event:
+                if team1["team"] in event:
+                    score[0] += 1
+                else:
+                    score[1] += 1
+
+    # ثبت نهایی نتیجه
+    result_details = create_result(team1, team2, score, events)
+    
+    # ذخیره تاریخچه برای هر دو تیم
+    save_match_history(team1, team2, result_details)
+    
+    # ارسال نتیجه نهایی
+    send_to_both(user1, user2, result_details["result_text"])
+    time.sleep(1)
+    
+    # ارسال خلاصه بازی
+    summary = (
+        f"📊 خلاصه بازی:\n"
+        f"🏟️ {team1['team']} {score[0]} - {score[1]} {team2['team']}\n"
+        f"⭐ قدرت تیم‌ها: {power1} vs {power2}\n"
+        f"⚽ گل‌ها: {', '.join(e for e in events if 'گل' in e)}"
+    )
+    send_to_both(user1, user2, summary)
+
+def send_to_both(user1, user2, message):
+    try:
+        bot.send_message(user1, message)
+        bot.send_message(user2, message)
+    except:
+        pass
+
+def create_result(team1, team2, score, events):
+    result = {
+        "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "score": f"{score[0]}-{score[1]}",
+        "events": events,
+        "opponent": team2["team"],
+        "power": f"{calculate_power(team1)}-{calculate_power(team2)}"
+    }
+    
+    if score[0] > score[1]:
+        result["result"] = "win"
+        result["result_text"] = f"🏆 {team1['team']} {score[0]}-{score[1]} برنده شد!"
+    elif score[0] < score[1]:
+        result["result"] = "lose"
+        result["result_text"] = f"🏆 {team2['team']} {score[1]}-{score[0]} برنده شد!"
+    else:
+        result["result"] = "draw"
+        result["result_text"] = f"🤝 مساوی {score[0]}-{score[1]}"
+    
+    return result
+
+def save_match_history(team1, team2, result):
+    # برای تیم اول
+    team1["match_history"].append(result)
+    
+    # برای تیم دوم (معکوس)
+    opp_result = result.copy()
+    opp_result.update({
+        "opponent": team1["team"],
+        "result": "win" if result["result"] == "lose" else "lose" if result["result"] == "win" else "draw"
+    })
+    team2["match_history"].append(opp_result)
+    
     # محاسبه قدرت تیم‌ها با جزئیات دقیق‌تر
     def calculate_power(team):
         base = sum(ALL_PLAYERS[p]["overall"] for p in team["players"] if p in ALL_PLAYERS) / 11
