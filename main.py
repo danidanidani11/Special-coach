@@ -372,22 +372,40 @@ def show_top_players(m):
     if not users:
         return bot.send_message(m.chat.id, "❌ هنوز کاربری ثبت‌نام نکرده است.")
     
-    sorted_users = sorted(users.items(), key=lambda x: x[1]["score"], reverse=True)
-    
-    text = "🏆 جدول برترین‌ها:\n\n"
-    for i, (uid, user) in enumerate(sorted_users[:10], 1):
-        # محاسبه دقیق آمار
-        wins = sum(1 for m in user["match_history"] if m.get("result_type") == "win")
-        losses = sum(1 for m in user["match_history"] if m.get("result_type") == "lose")
-        draws = sum(1 for m in user["match_history"] if m.get("result_type") == "draw")
-        goals_for = sum(int(m["score"].split("-")[0]) for m in user["match_history"])
-        goals_against = sum(int(m["score"].split("-")[1]) for m in user["match_history"])
+    leaderboard = []
+    for uid, user in users.items():
+        stats = {
+            "team": user["team"],
+            "score": user["score"],
+            "wins": 0,
+            "losses": 0,
+            "draws": 0,
+            "gf": 0,  # گل‌های زده
+            "ga": 0   # گل‌های خورده
+        }
         
+        for match in user["match_history"]:
+            if match["result"] == "win":
+                stats["wins"] += 1
+            elif match["result"] == "lose":
+                stats["losses"] += 1
+            else:
+                stats["draws"] += 1
+            
+            stats["gf"] += match["goals_for"]
+            stats["ga"] += match["goals_against"]
+        
+        leaderboard.append(stats)
+    
+    # مرتب‌سازی بر اساس امتیاز > تفاضل گل > گل‌زده
+    leaderboard.sort(key=lambda x: (-x["score"], -(x["gf"] - x["ga"]), -x["gf"]))
+    
+    text = "🏆 جدول برترین‌ها (بر اساس امتیاز و عملکرد):\n\n"
+    for i, team in enumerate(leaderboard[:10], 1):
         text += (
-            f"{i}. {user['team']} - امتیاز: {user['score']}\n"
-            f"   🏆 برد: {wins} | 🏳️ باخت: {losses} | 🤝 تساوی: {draws}\n"
-            f"   ⚽ گل‌های زده: {goals_for} | 🥅 گل‌های خورده: {goals_against}\n"
-            f"   📊 تفاضل گل: {goals_for - goals_against}\n\n"
+            f"{i}. {team['team']}\n"
+            f"⭐ امتیاز: {team['score']} (🏆{team['wins']} 🏳️{team['losses']} 🤝{team['draws']})\n"
+            f"⚽ گل‌ها: {team['gf']}-{team['ga']} (تفاضل: {team['gf'] - team['ga']})\n\n"
         )
     
     bot.send_message(m.chat.id, text, reply_markup=back_menu())
