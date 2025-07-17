@@ -2,7 +2,6 @@ import telebot
 from telebot import types
 from flask import Flask, request
 import os, time, json, threading, random, datetime
-user_states = {}
 
 TOKEN = "7721577419:AAGF6eX2kt5sD4FADDNNIuY0WJE7wBrnhFc"
 WEBHOOK_URL = "https://special-coach.onrender.com/" + TOKEN
@@ -56,8 +55,7 @@ def main_menu():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("📋 ترکیب و تاکتیک", "🏪 فروشگاه بازیکن")
     markup.row("🎮 بازی شبانه", "📄 گزارش بازی")
-    markup.row("👛 کیف پول", "🎁 پاداش روزانه")
-    markup.row("🏆 برترین‌ها")
+    markup.row("👛 کیف پول")
     return markup
 
 # منوی بازگشت
@@ -143,8 +141,7 @@ def contact_handler(message):
         "score": 0,
         "coins": 100,
         "gems": 2,
-        "match_history": [],
-        "last_reward": ""
+        "match_history": []
     }
 
     save_users(users)
@@ -423,10 +420,6 @@ def convert_coins(m):
     else:
         bot.send_message(m.chat.id, "❌ سکه کافی نداری!", reply_markup=back_menu())
 
-
-chat_id = str(call.message.chat.id)
-user_states[chat_id] = "awaiting_receipt"
-
 # ارسال فیش
 @bot.message_handler(func=lambda m: m.text == "📤 ارسال فیش")
 def ask_receipt(m):
@@ -434,11 +427,7 @@ def ask_receipt(m):
 
 @bot.message_handler(content_types=["text", "photo"])
 def handle_receipt(m):
-    chat_id = str(message.chat.id)
-    if chat_id not in user_states or user_states[chat_id] != "awaiting_receipt":
-        return
-        
-    if m.text in ["📄 گزارش بازی", "🎁 پاداش روزانه", "🏆 برترین‌ها"]:
+    if m.text in ["📄 گزارش بازی"]:
         return  # جلو ارسال اشتباهی
     if m.text == "بازگشت به منو":
         return bot.send_message(m.chat.id, "بازگشت به منوی اصلی", reply_markup=main_menu())
@@ -466,43 +455,6 @@ def handle_receipt_admin(c):
     else:
         bot.send_message(int(uid), "❌ فیش رد شد.")
         bot.edit_message_text("❌ رد شد", c.message.chat.id, c.message.message_id)
-
-user_states[chat_id] = None
-
-# 🎁 پاداش روزانه
-@bot.message_handler(func=lambda m: m.text == "🎁 پاداش روزانه")
-def daily_reward(m):
-    uid = str(m.from_user.id)
-    users = load_users()
-    today = datetime.datetime.now().date().isoformat()
-
-    if users[uid].get("last_reward") == today:
-        bot.send_message(m.chat.id, "❌ امروز پاداشت رو گرفتی.")
-        return
-
-    users[uid]["last_reward"] = today
-    users[uid]["gems"] += 2
-    save_users(users)
-    bot.send_message(m.chat.id, "🎉 2 جم به عنوان پاداش روزانه دریافت کردی!", reply_markup=back_menu())
-
-# 🏆 برترین‌ها
-@bot.message_handler(func=lambda m: m.text == "🏆 برترین‌ها")
-def top_players(m):
-    users = load_users()
-    rankings = []
-
-    for uid, u in users.items():
-        total = len(u.get("match_history", []))
-        wins = sum(1 for r in u.get("match_history", []) if "برنده شد" in r and u.get("team", "") in r)
-        percent = int((wins / total) * 100) if total > 0 else 0
-        rankings.append((u.get("team", "نامعلوم"), percent))
-
-    rankings.sort(key=lambda x: x[1], reverse=True)
-    text = "🏆 برترین تیم‌ها:\n\n"
-    for i, (name, percent) in enumerate(rankings[:10], 1):
-        text += f"{i}- {name}: {percent}% برد\n"
-
-    bot.send_message(m.chat.id, text or "❌ هیچ تیمی ثبت نشده.", reply_markup=back_menu())
 
 # اجرای فل ask با webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
