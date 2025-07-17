@@ -33,6 +33,7 @@ ALL_PLAYERS = {
     "player50": {"name": "Ter Stegen", "overall": 87, "position": "GK", "price_coins": 350, "price_gems": 5},
     "player29": {"name": "Kdb", "overall": 93, "position": "MF", "price_coins": 500, "price_gems": 8},
     "player30": {"name": "Neymar", "overall": 93, "position": "FW", "price_coins": 525, "price_gems": 9}
+}
 # سیستم رویدادهای بازی
 MATCH_EVENTS = {
     "goal": [
