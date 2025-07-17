@@ -105,6 +105,48 @@ def simulate_live_match(user1, user2, users):
     team1 = users[user1]
     team2 = users[user2]
     
+    score = [0, 0]  # [تیم 1, تیم 2]
+    events = []
+    
+    # ... (کدهای قبلی شبیه‌سازی بازی) ...
+
+    # ثبت نتیجه نهایی با نوع دقیق
+    if score[0] > score[1]:
+        team1["score"] += 3
+        result_type = "win"
+        result_text = f"🏆 {team1['team']} {score[0]}-{score[1]} برنده شد!"
+    elif score[0] < score[1]:
+        team2["score"] += 3
+        result_type = "win"
+        result_text = f"🏆 {team2['team']} {score[1]}-{score[0]} برنده شد!"
+    else:
+        team1["score"] += 1
+        team2["score"] += 1
+        result_type = "draw"
+        result_text = f"🤝 بازی مساوی شد! نتیجه {score[0]}-{score[1]}"
+
+    # ذخیره تاریخچه با نوع نتیجه
+    match_details = {
+        "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "result": result_text,
+        "result_type": result_type,  # win/lose/draw
+        "score": f"{score[0]}-{score[1]}",
+        "opponent": team2['team'],
+        "events": events,
+        "goals_for": score[0] if user1 == user1 else score[1],
+        "goals_against": score[1] if user1 == user1 else score[0]
+    }
+    
+    users[user1]["match_history"].append(match_details)
+    
+    # ذخیره معکوس برای تیم مقابل
+    opp_match_details = match_details.copy()
+    opp_match_details["opponent"] = team1['team']
+    opp_match_details["goals_for"] = score[1]
+    opp_match_details["goals_against"] = score[0]
+    opp_match_details["result_type"] = "lose" if result_type == "win" else "win" if result_type == "lose" else "draw"
+    users[user2]["match_history"].append(opp_match_details)
+    
     def get_random_player(team, position=None):
         players = [pid for pid in team["players"] if pid in ALL_PLAYERS and (not position or ALL_PLAYERS[pid]["position"] == position)]
         if not players:
