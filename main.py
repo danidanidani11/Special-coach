@@ -417,7 +417,7 @@ def simulate_match(user1, user2, users):
 def run_nightly_game():
     while True:
         now = datetime.datetime.now()
-        if now.hour == 22 and now.minute == 0:
+        if now.hour == 12 and now.minute == 0:
             users = load_users()
             plist = list(participants)
             random.shuffle(plist)
