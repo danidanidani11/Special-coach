@@ -430,6 +430,10 @@ def ask_receipt(m):
 
 @bot.message_handler(content_types=["text", "photo"])
 def handle_receipt(m):
+    chat_id = str(message.chat.id)
+    if chat_id not in user_states or user_states[chat_id] != "awaiting_receipt":
+        return
+        
     if m.text in ["📄 گزارش بازی", "🎁 پاداش روزانه", "🏆 برترین‌ها"]:
         return  # جلو ارسال اشتباهی
     if m.text == "بازگشت به منو":
