@@ -544,20 +544,30 @@ def match_report(m):
     if not history:
         return bot.send_message(m.chat.id, "❌ هنوز هیچ بازی ثبت نشده.")
     
-    last_match = history[-1]
+    text = "📋 تاریخچه کامل بازی‌های شما:\n\n"
+    for i, match in enumerate(reversed(history), 1):  # جدیدترین بازی اول
+        text += (
+            f"🕒 {match['date']}\n"
+            f"⚽ {match['result']}\n"
+            f"👥 حریف: {match['opponent']}\n"
+            f"📊 نتیجه: {match['score']}\n"
+        )
+        
+        # نمایش 3 رویداد برتر اگر وجود داشته باشد
+        if match.get("events"):
+            text += "🎯 مهمترین رویدادها:\n"
+            for j, event in enumerate(match["events"][:3], 1):
+                text += f"{j}. {event}\n"
+        
+        text += "\n"
+        
+        # اگر متن خیلی طولانی شد، ارسال و ادامه
+        if len(text) > 3000:
+            bot.send_message(m.chat.id, text)
+            text = ""
     
-    report = (
-        f"📄 گزارش آخرین بازی:\n"
-        f"🕒 تاریخ: {last_match['date']}\n"
-        f"⚽ نتیجه: {last_match['result']}\n"
-        f"👥 حریف: {last_match['opponent']}\n\n"
-        f"📊 خلاصه رویدادها:\n"
-    )
-    
-    for i, event in enumerate(last_match.get("events", [])[:5]):  # نمایش 5 رویداد اول
-        report += f"{i+1}. {event}\n"
-    
-    bot.send_message(m.chat.id, report, reply_markup=back_menu())
+    if text:
+        bot.send_message(m.chat.id, text, reply_markup=back_menu())
 
 @bot.message_handler(func=lambda m: m.text == "👛 کیف پول")
 def wallet(m):
