@@ -84,12 +84,13 @@ def is_member(user_id):
     except:
         return False
 
-def main_menu():
+def get_menu():
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("📋 ترکیب و تاکتیک", "🏪 فروشگاه بازیکن")
     markup.row("🎮 بازی شبانه")
     markup.row("👛 کیف پول", "🏆 برترین‌ها")
     markup.row("🎁 پاداش روزانه")
-    return markup
+    return markup  # ← درست چسبیده به بقیه کدها
 
 def back_menu():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
