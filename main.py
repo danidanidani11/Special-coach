@@ -89,7 +89,7 @@ def main_menu():
     markup.row("🎮 بازی شبانه")
     markup.row("👛 کیف پول", "🏆 برترین‌ها")
     markup.row("🎁 پاداش روزانه")
-        return markup
+    return markup
 
 def back_menu():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
